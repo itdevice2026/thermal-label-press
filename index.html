@@ -38,6 +38,7 @@
     <span class="whoName" id="who-name"></span>
     <span class="chip" id="who-role"></span>
     <button class="btn ghost tiny" id="b-refresh" title="Reload from the database">Refresh</button>
+    <button class="btn ghost tiny" id="b-lock" title="Lock the station">Lock</button>
     <button class="btn ghost tiny" id="b-signout">Sign out</button>
   </div>
 </header>
@@ -272,27 +273,49 @@
 <!-- ============ USERS ============ -->
 <section class="panel" id="p-users">
   <div class="card">
-    <h2>Who can use this</h2>
-    <div class="body" style="display:flex;flex-direction:column;gap:12px;font-size:14px;color:var(--ink-2)">
-      <p style="margin:0">People sign up themselves at the sign-in screen with a
-        <b style="color:var(--ink)">@<span class="signup-domain">company</span></b> email address. A new account starts as
-        <b style="color:var(--ink)">Pending</b> and can see nothing at all until you give it a role here.</p>
-      <p style="margin:0"><b style="color:var(--ink)">Operator</b> can print and read the log.
-        <b style="color:var(--ink)">Administrator</b> can also change products, customers, label setup and these roles.
-        Removing an account takes away its access; the person can still sign in but lands back on Pending.</p>
+    <h2 id="usr-title">Add a user</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="u-name">Name</label><input type="text" id="u-name" autocomplete="off" placeholder="Rosa dela Cruz"></div>
+        <div class="field"><label for="u-user">Username</label><input type="text" id="u-user" autocomplete="off" placeholder="rosa.delacruz@meatplus.ph"></div>
+        <div class="field"><label for="u-role">Role</label>
+          <select id="u-role">
+            <option value="operator">Operator — print and view the log</option>
+            <option value="admin">Administrator — everything</option>
+          </select>
+        </div>
+        <div class="field"><label for="u-pin">PIN or password</label><input type="password" id="u-pin" autocomplete="new-password"></div>
+        <div class="field"><label for="u-pin2">Repeat it</label><input type="password" id="u-pin2" autocomplete="new-password"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-uadd">Add user</button>
+        <button class="btn ghost" id="b-ucancel" style="display:none">Cancel</button>
+        <span class="hint" id="usr-msg"></span>
+      </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Accounts <span class="count" id="usr-count"></span></h2>
+    <h2>Users <span class="count" id="usr-count"></span></h2>
     <div class="tblWrap">
       <table>
-        <thead><tr><th>Name</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Last signed in</th><th></th></tr></thead>
         <tbody id="usr-body"></tbody>
       </table>
     </div>
-    <div class="body row" style="border-top:1px solid var(--line-2)">
-      <span class="hint" id="usr-msg"></span>
+    <div class="body" style="border-top:1px solid var(--line-2)">
+      <div class="flag ok"><span class="ic">▣</span><span>Accounts are real logins in your Supabase project and what each
+        role may read or change is enforced by the database, not by this page — so the rules hold however the page is
+        opened. Passwords are set through a server-side function that checks you are an administrator first; the key
+        that can create a login is never sent to this browser.</span></div>
+      <div class="flag warn" style="margin-top:10px"><span class="ic">△</span><span>This project's logins are shared with
+        the other Meatplus apps. <b>Delete</b> here removes access to the label app only — it does not delete the
+        person's login, so they keep working in those. If the username already has a login, adding it here gives that
+        person label access instead of making a second account; leave the password blank to keep theirs as it is.</span></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="b-uexport">Export users CSV</button>
+        <span class="hint">Names, usernames and roles only — passwords are never exported.</span>
+      </div>
     </div>
   </div>
 </section>
