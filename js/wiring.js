@@ -104,6 +104,21 @@ $("#b-cadd").addEventListener("click", () => {
 });
 $("#b-ccancel").addEventListener("click", clearCustomerForm);
 
+/* ---- customer logo ---- */
+$("#b-clogo").addEventListener("click", () => $("#c-logo-file").click());
+$("#b-clogo-x").addEventListener("click", () => { pendingLogo = null; $("#c-logo-file").value = ""; paintLogoBox(); });
+$("#c-logo-file").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    pendingLogo = await shrinkLogo(f);
+    paintLogoBox();
+    $("#cus-msg").textContent = "";
+  } catch (err){
+    $("#cus-msg").textContent = err.message;
+  }
+  e.target.value = "";
+});
+
 $("#cus-body").addEventListener("click", e => {
   const ed = e.target.closest("[data-cedit]"), del = e.target.closest("[data-cdel]");
   if (ed){
@@ -112,6 +127,7 @@ $("#cus-body").addEventListener("click", e => {
     $("#c-name").value = c.name; $("#c-code").value = c.code || "";
     $("#c-contact").value = c.contact || ""; $("#c-addr").value = c.address || "";
     $("#c-notes").value = c.notes || "";
+    pendingLogo = c.logo || null; paintLogoBox();
     $("#c-w").value = c.stock ? c.stock.w : "";
     $("#c-h").value = c.stock ? c.stock.h : "";
     $("#cus-title").textContent = "Edit customer";
