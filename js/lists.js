@@ -208,7 +208,9 @@ function renderQueue(){
   const n = queue.reduce((a,q) => a + q.copies, 0);
   $("#q-count").textContent = n + (n === 1 ? " label" : " labels");
   $("#q-list").innerHTML = queue.length ? queue.map((q,i) =>
-    '<div class="qrow"><span class="qty">×' + q.copies + '</span>' +
+    '<div class="qrow"><span class="qtyBox"><span class="qtyX">×</span>' +
+      '<input type="number" class="qty" min="1" max="500" step="1" value="' + q.copies +
+      '" data-qty="' + i + '" aria-label="Copies of ' + esc([q.name, q.size].filter(Boolean).join(" ")) + '"></span>' +
     '<span class="nm">' + esc([q.name, q.size].filter(Boolean).join(" ")) +
       (q.cust ? ' <span class="cd">· ' + esc(custName(q.cust)) + "</span>" : "") + '</span>' +
     '<span class="cd">' + esc(q.code) + '</span>' +
