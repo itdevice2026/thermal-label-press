@@ -41,7 +41,7 @@ const db = {
     ]);
     customers = (cus || []).map(c => ({
       id: c.id, name: c.name, code: c.code || "", contact: c.contact || "",
-      address: c.address || "", notes: c.notes || "", stock: c.stock || null
+      address: c.address || "", notes: c.notes || "", stock: c.stock || null, logo: c.logo || null
     }));
     catalog = (prods || []).map(p => ({
       id: p.id, name: p.name, size: p.size || "", code: p.code, cust: p.customer_id || ""
@@ -65,7 +65,8 @@ const db = {
 
   async saveCustomer(co){
     const row = { name: co.name, code: co.code || "", contact: co.contact || "",
-                  address: co.address || "", notes: co.notes || "", stock: co.stock || null };
+                  address: co.address || "", notes: co.notes || "", stock: co.stock || null,
+                  logo: co.logo || null };
     if (co.id){ await sb.update("lbl_customers", "id=eq." + co.id, row); return co; }
     const out = await sb.insert("lbl_customers", [row]);
     co.id = out[0].id;
