@@ -299,3 +299,11 @@ td select.rowrole{min-width:210px}
   border:1px solid var(--line-2);margin-left:10px}
 .custRow{display:flex;align-items:center}
 .custRow select{flex:1 1 auto;min-width:0}
+
+/* ---- company mark on the sign-in card ----
+   The logo is artwork on white, so it sits on its own white plate. In the light
+   theme that plate is invisible against the card; in the dark theme it keeps the
+   black wordmark readable instead of losing it to the background. */
+.gateLogo{display:flex;justify-content:center;margin:0 0 20px}
+.gateLogo img{width:170px;max-width:70%;height:auto;display:block;
+  background:#fff;border-radius:10px;padding:10px 12px;box-sizing:border-box}
