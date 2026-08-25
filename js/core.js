@@ -41,10 +41,12 @@ const db = {
     ]);
     customers = (cus || []).map(c => ({
       id: c.id, name: c.name, code: c.code || "", contact: c.contact || "",
-      address: c.address || "", notes: c.notes || "", stock: c.stock || null, logo: c.logo || null
+      address: c.address || "", notes: c.notes || "", stock: c.stock || null, logo: c.logo || null,
+      status: c.status || "approved", by: c.created_by || ""
     }));
     catalog = (prods || []).map(p => ({
-      id: p.id, name: p.name, size: p.size || "", code: p.code, cust: p.customer_id || ""
+      id: p.id, name: p.name, size: p.size || "", code: p.code, cust: p.customer_id || "",
+      status: p.status || "approved", by: p.created_by || ""
     }));
     logbook = (log || []).map(r => ({
       when: (r.printed_at || "").replace("T", " ").slice(0, 16),
@@ -67,9 +69,20 @@ const db = {
     const row = { name: co.name, code: co.code || "", contact: co.contact || "",
                   address: co.address || "", notes: co.notes || "", stock: co.stock || null,
                   logo: co.logo || null };
+    /* An operator may only ever file a proposal, under their own name. The
+       database enforces this too — this just keeps the app honest. */
+    if (!isAdmin()){
+      row.status = "pending";
+      row.created_by = me && me.id;
+      row.submitted_at = new Date().toISOString();
+    }
     if (co.id){ await sb.update("lbl_customers", "id=eq." + co.id, row); return co; }
     const out = await sb.insert("lbl_customers", [row]);
     co.id = out[0].id;
+    /* mirror the submission state onto the in-memory copy, or the pickers would
+       go on offering a customer the database is still holding for approval */
+    co.status = row.status || "approved";
+    co.by = row.created_by || "";
     renderCustomers();
     return co;
   },
@@ -83,11 +96,23 @@ const db = {
 
   async saveProduct(p){
     const row = { name: p.name, size: p.size || "", code: p.code, customer_id: p.cust };
+    if (!isAdmin()){
+      row.status = "pending";
+      row.created_by = me && me.id;
+      row.submitted_at = new Date().toISOString();
+    }
     if (p.id){ await sb.update("lbl_products", "id=eq." + p.id, row); return p; }
     const out = await sb.insert("lbl_products", [row]);
     p.id = out[0].id;
+    p.status = row.status || "approved";
+    p.by = row.created_by || "";
     return p;
   },
+
+  /* Approving is an administrator-only write; the database refuses it from
+     anyone else, whatever this page decides to send. */
+  approveProduct(p){  return sb.update("lbl_products",  "id=eq." + p.id, { status: "approved" }); },
+  approveCustomer(c){ return sb.update("lbl_customers", "id=eq." + c.id, { status: "approved" }); },
   deleteProduct(p){
     return p.id ? sb.remove("lbl_products", "id=eq." + p.id) : Promise.resolve();
   },
@@ -204,6 +229,7 @@ function applyRole(){
     $("#who-role").textContent = admin ? "Admin" : "Operator";
   }
   $$("[data-admin]").forEach(el => { el.style.display = admin ? "" : "none"; });
+  $$("[data-op]").forEach(el => { el.style.display = admin ? "none" : ""; });
   const open = $$(".tabs button").find(b => b.getAttribute("aria-selected") === "true");
   if (!admin && (!open || open.dataset.admin)) selectTab("print");
 }

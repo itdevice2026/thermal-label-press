@@ -321,3 +321,18 @@ td select.rowrole{min-width:210px}
 .gateLogo{display:flex;justify-content:center;margin:0 0 12px}
 .gateLogo img{width:118px;max-width:55%;height:auto;display:block;
   background:#fff;border-radius:8px;padding:6px 8px;box-sizing:border-box}
+
+/* ---- approval queue ---- */
+.badge{
+  display:inline-block;min-width:17px;padding:1px 5px;margin-left:5px;border-radius:9px;
+  background:var(--warn-soft,#f6e6c8);color:var(--warn-ink,#7a5a12);
+  font-family:var(--mono);font-size:10px;font-weight:700;line-height:15px;text-align:center;vertical-align:middle;
+}
+tr.isPending{background:var(--warn-soft,#fdf6e7)}
+tr.isPending td{border-color:rgba(0,0,0,.06)}
+.pendTag{
+  display:inline-block;margin-left:7px;padding:1px 7px;border-radius:20px;
+  background:var(--warn-soft,#f6e6c8);color:var(--warn-ink,#7a5a12);
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;vertical-align:middle;
+}
+.byline{display:block;font-size:11px;color:var(--ink-3);margin-top:2px}

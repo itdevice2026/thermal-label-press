@@ -136,11 +136,14 @@ function needCompany(msgEl){
   if (m) m.textContent = "Add a customer first — every product belongs to one.";
   return true;
 }
-function custOptions(sel, blankLabel){
+/* The Print tab and the product form offer approved customers only; a pending
+   one is still listed on the Customers tab so it can be approved or corrected. */
+function custOptions(sel, blankLabel, includePending){
   const cur = sel.value;
+  const list = customers.filter(c => includePending || c.status !== "pending");
   sel.innerHTML = '<option value="">' + blankLabel + "</option>" +
-    customers.map(c => '<option value="' + c.id + '">' + esc(custName(c.id)) + "</option>").join("");
-  sel.value = customers.some(c => c.id === cur) ? cur : "";
+    list.map(c => '<option value="' + c.id + '">' + esc(custName(c.id)) + "</option>").join("");
+  sel.value = list.some(c => c.id === cur) ? cur : "";
 }
 
 

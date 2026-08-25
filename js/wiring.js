@@ -76,7 +76,11 @@ $("#b-add").addEventListener("click", () => {
   const editing = !!editingProduct;
   clearProductForm();
   renderCatalog();
-  db.saveProduct(row).then(() => toast((editing ? "Updated " : "Added ") + name)).catch(dbErr);
+  db.saveProduct(row).then(() => {
+    renderCatalog();
+    toast(isAdmin() ? (editing ? "Updated " : "Added ") + name
+                    : name + " sent for approval");
+  }).catch(dbErr);
 });
 $("#b-pcancel").addEventListener("click", clearProductForm);
 
@@ -100,7 +104,11 @@ $("#b-cadd").addEventListener("click", () => {
   }
   const editing = !!editingCustomer;
   clearCustomerForm(); renderCustomers(); adoptProfile();
-  db.saveCustomer(co).then(() => toast(editing ? "Customer updated" : "Added " + co.name)).catch(dbErr);
+  db.saveCustomer(co).then(() => {
+    renderCustomers();
+    toast(isAdmin() ? (editing ? "Customer updated" : "Added " + co.name)
+                    : co.name + " sent for approval");
+  }).catch(dbErr);
 });
 $("#b-ccancel").addEventListener("click", clearCustomerForm);
 
@@ -119,7 +127,20 @@ $("#c-logo-file").addEventListener("change", async e => {
   e.target.value = "";
 });
 
-$("#cus-body").addEventListener("click", e => {
+$("#cus-body").addEventListener("click", async e => {
+  const ok = e.target.closest("[data-capprove]");
+  if (ok){
+    if (!isAdmin()) return;
+    const c = customers[+ok.dataset.capprove]; if (!c) return;
+    ok.disabled = true;
+    try {
+      await db.approveCustomer(c);
+      c.status = "approved";
+      renderCustomers(); adoptProfile();
+      toast("Approved " + c.name);
+    } catch (err){ dbErr(err); ok.disabled = false; }
+    return;
+  }
   const ed = e.target.closest("[data-cedit]"), del = e.target.closest("[data-cdel]");
   if (ed){
     const c = customers[+ed.dataset.cedit];
@@ -177,7 +198,20 @@ $("#cat-body").addEventListener("change", e => {
   db.saveProduct(p).then(() => toast(p.name + " → " + custName(p.cust))).catch(dbErr);
 });
 
-$("#cat-body").addEventListener("click", e => {
+$("#cat-body").addEventListener("click", async e => {
+  const ok = e.target.closest("[data-papprove]");
+  if (ok){
+    if (!isAdmin()) return;
+    const p = catalog[+ok.dataset.papprove]; if (!p) return;
+    ok.disabled = true;
+    try {
+      await db.approveProduct(p);
+      p.status = "approved";
+      renderCatalog();
+      toast("Approved " + p.name);
+    } catch (err){ dbErr(err); ok.disabled = false; }
+    return;
+  }
   const use = e.target.closest("[data-use]"), del = e.target.closest("[data-del]");
   const ed = e.target.closest("[data-pedit]");
   if (ed){ editProduct(+ed.dataset.pedit); return; }

@@ -28,8 +28,8 @@
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="print">Print</button>
-    <button role="tab" aria-selected="false" data-tab="products" data-admin="1">Products</button>
-    <button role="tab" aria-selected="false" data-tab="customers" data-admin="1">Customers</button>
+    <button role="tab" aria-selected="false" data-tab="products">Products <span class="badge" id="pend-prod" hidden></span></button>
+    <button role="tab" aria-selected="false" data-tab="customers">Customers <span class="badge" id="pend-cust" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="log">Print log</button>
     <button role="tab" aria-selected="false" data-tab="setup" data-admin="1">Label setup</button>
     <button role="tab" aria-selected="false" data-tab="users" data-admin="1">Users</button>
@@ -145,8 +145,8 @@
             <input type="number" id="f-copies" value="1" min="1" max="500" class="mono">
           </div>
           <div class="field">
-            <span class="lbl" data-admin="1">Catalog</span>
-            <button class="btn" id="b-save" data-admin="1">Save to products</button>
+            <span class="lbl">Catalog</span>
+            <button class="btn" id="b-save">Save to products</button>
           </div>
         </div>
       </div>
@@ -207,6 +207,7 @@
         <button class="btn primary" id="b-add">Add product</button>
         <button class="btn ghost" id="b-pcancel" style="display:none">Cancel</button>
         <span class="hint" id="add-msg"></span>
+        <span class="hint" data-op="1">New products are sent to an administrator for approval before they can be printed.</span>
       </div>
     </div>
   </div>
@@ -222,7 +223,7 @@
     </div>
     <div class="body row" style="border-top:1px solid var(--line-2)">
       <button class="btn" id="b-export">Export CSV</button>
-      <button class="btn" id="b-import">Import CSV</button>
+      <button class="btn" id="b-import" data-admin="1">Import CSV</button>
       <input type="file" id="f-file" accept=".csv,text/csv" style="display:none">
       <span class="hint">Columns: name, size, code, customer. Import adds new codes and updates matching ones; either “customer” or “company” works as the column name. This is how you bring across the CSVs exported from the offline label station.</span>
     </div>
@@ -258,6 +259,7 @@
         <button class="btn primary" id="b-cadd">Add customer</button>
         <button class="btn ghost" id="b-ccancel" style="display:none">Cancel</button>
         <span class="hint" id="cus-msg"></span>
+        <span class="hint" data-op="1">New customers are sent to an administrator for approval before they can be used.</span>
       </div>
     </div>
   </div>
@@ -272,7 +274,7 @@
     </div>
     <div class="body row" style="border-top:1px solid var(--line-2)">
       <button class="btn" id="b-cexport">Export CSV</button>
-      <button class="btn" id="b-cimport">Import CSV</button>
+      <button class="btn" id="b-cimport" data-admin="1">Import CSV</button>
       <input type="file" id="c-file" accept=".csv,text/csv" style="display:none">
       <span class="hint">Columns: name, code, contact, address, notes. Logos are not part of the CSV — set those here.</span>
     </div>

@@ -1,26 +1,76 @@
 /* ============================================================
    Catalog
    ============================================================ */
+/* ============================================================
+   Approval
+   An operator may propose a product or a customer; it exists straight away but
+   is marked pending and stays out of the Print tab until an administrator
+   approves it. The database enforces all of this — see 0004 in
+   supabase/migrations — so these helpers only decide what is shown.
+   ============================================================ */
+function isPending(row){ return row && row.status === "pending"; }
+function pendingTag(row){ return isPending(row) ? '<span class="pendTag">PENDING</span>' : ""; }
+function submitterName(row){
+  if (!isPending(row)) return "";
+  const p = profiles.find(x => x.id === row.by);
+  const who = p ? p.name : (me && row.by === me.id ? me.name : "");
+  return who ? '<span class="byline">proposed by ' + esc(who) + "</span>" : '<span class="byline">awaiting approval</span>';
+}
+/* Can the person signed in act on this row at all? Admins on anything;
+   an operator only on their own proposal, while it is still pending. */
+function canEditRow(row){
+  return isAdmin() || (isPending(row) && me && row.by === me.id);
+}
+function paintPendingCounts(){
+  [["#pend-prod", catalog], ["#pend-cust", customers]].forEach(([sel, list]) => {
+    const el = $(sel); if (!el) return;
+    const n = list.filter(isPending).length;
+    el.textContent = n ? String(n) : "";
+    el.hidden = !n;
+  });
+}
+
 function renderCatalog(){
   const who  = $("#f-cust").value;
   const mark = $("#f-cust-mark");
   if (mark) mark.innerHTML = logoMark(custById(who), "pickMark");
   const pick = $("#f-pick");
   const cur  = pick.value;
-  const visible = catalog.map((p,i) => [p,i]).filter(([p]) => !who || !p.cust || p.cust === who);
+  /* Only approved products can be printed. A pending one exists and is
+     visible on the Products tab, but never reaches a pack. */
+  const visible = catalog.map((p,i) => [p,i])
+    .filter(([p]) => p.status !== "pending")
+    .filter(([p]) => !who || !p.cust || p.cust === who);
 
   pick.innerHTML = '<option value="">Custom entry</option>' +
     visible.map(([p,i]) => '<option value="' + i + '">' + esc(p.name + (p.size ? " · " + p.size : "")) + "</option>").join("");
   pick.value = visible.some(([,i]) => String(i) === cur) ? cur : "";
 
-  $("#cat-count").textContent = catalog.length + (catalog.length === 1 ? " product" : " products");
-  $("#cat-body").innerHTML = catalog.length ? catalog.map((p,i) =>
-    "<tr><td>" + esc(p.name) + "</td><td>" + esc(p.size || "—") + '</td><td class="mono">' + esc(p.code) +
-    "</td><td>" + companyCell(p, i) +
-    '</td><td class="acts"><button class="btn tiny" data-use="' + i + '">Use</button> ' +
-    '<button class="btn tiny" data-pedit="' + i + '">Edit</button> ' +
-    '<button class="btn tiny danger" data-del="' + i + '">Delete</button></td></tr>').join("")
+  const waiting = catalog.filter(isPending).length;
+  $("#cat-count").textContent = catalog.length + (catalog.length === 1 ? " product" : " products") +
+    (waiting ? " · " + waiting + " awaiting approval" : "");
+  $("#cat-body").innerHTML = catalog.length ? catalog.map((p,i) => {
+    const pend = isPending(p);
+    const acts = pend
+      ? (isAdmin()
+          ? '<button class="btn tiny primary" data-papprove="' + i + '">Approve</button> ' +
+            '<button class="btn tiny danger" data-del="' + i + '">Reject</button>'
+          : (canEditRow(p)
+              ? '<button class="btn tiny" data-pedit="' + i + '">Edit</button> ' +
+                '<button class="btn tiny danger" data-del="' + i + '">Withdraw</button>'
+              : ""))
+      : '<button class="btn tiny" data-use="' + i + '">Use</button>' +
+        (isAdmin()
+          ? ' <button class="btn tiny" data-pedit="' + i + '">Edit</button> ' +
+            '<button class="btn tiny danger" data-del="' + i + '">Delete</button>'
+          : "");
+    return '<tr' + (pend ? ' class="isPending"' : "") + "><td>" + esc(p.name) + pendingTag(p) + submitterName(p) +
+      "</td><td>" + esc(p.size || "—") + '</td><td class="mono">' + esc(p.code) +
+      "</td><td>" + companyCell(p, i) +
+      '</td><td class="acts">' + acts + "</td></tr>";
+  }).join("")
     : '<tr><td colspan="5" class="empty">No products saved yet.</td></tr>';
+  paintPendingCounts();
 
   const orphans = catalog.filter(p => !p.cust).length;
   $("#cat-warn").innerHTML = orphans
@@ -57,6 +107,7 @@ function editProduct(i){
 /* The customer cell is editable in place, so a product is never stuck without one. */
 function companyCell(p, i){
   const unset = !p.cust;
+  if (!canEditRow(p)) return esc(custName(p.cust) || "—");
   return '<select class="rowco' + (unset ? " unset" : "") + '" data-row="' + i + '" aria-label="Customer for ' + esc(p.name) + '">' +
     '<option value=""' + (unset ? " selected" : "") + ">Set customer…</option>" +
     customers.map(c => '<option value="' + c.id + '"' + (c.id === p.cust ? " selected" : "") + ">" +
@@ -68,19 +119,35 @@ function companyCell(p, i){
    ============================================================ */
 function renderCustomers(){
   custOptions($("#f-cust"), "All customers");
-  custOptions($("#n-cust"), "Select a customer…");
-  $("#cus-count").textContent = customers.length + (customers.length === 1 ? " customer" : " customers");
+  custOptions($("#n-cust"), "Select a customer…");   /* approved only */
+  const waitingC = customers.filter(isPending).length;
+  $("#cus-count").textContent = customers.length + (customers.length === 1 ? " customer" : " customers") +
+    (waitingC ? " · " + waitingC + " awaiting approval" : "");
   $("#cus-body").innerHTML = customers.length ? customers.map((c,i) => {
     const n = catalog.filter(p => p.cust === c.id).length;
     const stock = c.stock
       ? '<span class="mono">' + c.stock.w + " × " + c.stock.h + " mm</span>"
       : '<span class="mono" style="color:var(--ink-3)">' + house.w + " × " + house.h + " mm · house</span>";
-    return '<tr><td><span class="coName">' + logoMark(c, "coMark") + "<span>" + esc(c.name) + '</span></span></td><td class="mono">' + esc(c.code || "—") + "</td><td>" + stock + "</td><td>" +
+    const pend = isPending(c);
+    const acts = pend
+      ? (isAdmin()
+          ? '<button class="btn tiny primary" data-capprove="' + i + '">Approve</button> ' +
+            '<button class="btn tiny danger" data-cdel="' + i + '">Reject</button>'
+          : (canEditRow(c)
+              ? '<button class="btn tiny" data-cedit="' + i + '">Edit</button> ' +
+                '<button class="btn tiny danger" data-cdel="' + i + '">Withdraw</button>'
+              : ""))
+      : (isAdmin()
+          ? '<button class="btn tiny" data-cedit="' + i + '">Edit</button> ' +
+            '<button class="btn tiny danger" data-cdel="' + i + '">Delete</button>'
+          : "");
+    return '<tr' + (pend ? ' class="isPending"' : "") + '><td><span class="coName">' + logoMark(c, "coMark") +
+      "<span>" + esc(c.name) + pendingTag(c) + submitterName(c) + '</span></span></td><td class="mono">' +
+      esc(c.code || "—") + "</td><td>" + stock + "</td><td>" +
       esc(c.contact || "—") + "</td><td>" + esc(c.address || "—") + "</td><td>" + esc(c.notes || "—") +
-      '</td><td class="mono">' + n + '</td><td class="acts">' +
-      '<button class="btn tiny" data-cedit="' + i + '">Edit</button> ' +
-      '<button class="btn tiny danger" data-cdel="' + i + '">Delete</button></td></tr>';
+      '</td><td class="mono">' + n + '</td><td class="acts">' + acts + "</td></tr>";
   }).join("") : '<tr><td colspan="8" class="empty">No customers yet. Add one before saving products.</td></tr>';
+  paintPendingCounts();
   renderCatalog();
 }
 
