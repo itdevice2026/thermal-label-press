@@ -208,6 +208,27 @@ $("#q-list").addEventListener("click", e => {
   const b = e.target.closest("[data-qdel]");
   if (b){ queue.splice(+b.dataset.qdel, 1); renderQueue(); }
 });
+/* The count on a queued line is editable in place. Re-rendering the whole list
+   on every keystroke would steal the caret, so this updates the row's own
+   number, the running total and the saved queue — and leaves the DOM alone. */
+$("#q-list").addEventListener("input", e => {
+  const box = e.target.closest("[data-qty]");
+  if (!box) return;
+  const q = queue[+box.dataset.qty];
+  if (!q) return;
+  const n = Math.max(1, Math.min(500, Math.floor(+box.value || 1)));
+  q.copies = n;
+  const total = queue.reduce((a, x) => a + x.copies, 0);
+  $("#q-count").textContent = total + (total === 1 ? " label" : " labels");
+  store.write("lbl.queue", queue);
+});
+/* Tidy the box up once the operator leaves it, so a blank or 0 does not linger. */
+$("#q-list").addEventListener("change", e => {
+  const box = e.target.closest("[data-qty]");
+  if (!box) return;
+  const q = queue[+box.dataset.qty];
+  if (q) box.value = q.copies;
+});
 $("#b-printq").addEventListener("click", () => printLabels(queue));
 $("#b-print").addEventListener("click", () => printLabels([currentLabel()]));
 $("#b-copyzpl").addEventListener("click", () => copy($("#zpl").textContent, "ZPL"));
