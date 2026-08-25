@@ -328,6 +328,8 @@ td select.rowrole{min-width:210px}
   background:var(--warn-soft,#f6e6c8);color:var(--warn-ink,#7a5a12);
   font-family:var(--mono);font-size:10px;font-weight:700;line-height:15px;text-align:center;vertical-align:middle;
 }
+/* an author rule beats the browser's own [hidden]{display:none}, so say it again */
+.badge[hidden]{display:none}
 tr.isPending{background:var(--warn-soft,#fdf6e7)}
 tr.isPending td{border-color:rgba(0,0,0,.06)}
 .pendTag{
