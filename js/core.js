@@ -103,7 +103,30 @@ const db = {
 
   loadProfiles(){ return sb.select("lbl_profiles", "select=*&order=created_at.asc"); },
   setRole(id, role){ return sb.update("lbl_profiles", "id=eq." + id, { role }); },
-  removeProfile(id){ return sb.remove("lbl_profiles", "id=eq." + id); }
+  setName(id, name){ return sb.update("lbl_profiles", "id=eq." + id, { name }); },
+  removeProfile(id){ return sb.remove("lbl_profiles", "id=eq." + id); },
+  touch(){ return sb.rpc("lbl_touch"); },
+
+  /* Making a login, changing a password and taking access away all need more
+     privilege than a browser may hold, so they go through the lbl-users
+     function, which checks the caller is an administrator before acting. */
+  async admin(action, payload){
+    await sb.ensureFresh();
+    const s = sb.session;
+    const res = await fetch(CONFIG.SUPABASE_URL.replace(/\/+$/, "") + "/functions/v1/lbl-users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: CONFIG.SUPABASE_KEY,
+        Authorization: "Bearer " + (s ? s.access_token : "")
+      },
+      body: JSON.stringify(Object.assign({ action }, payload))
+    }).catch(() => null);
+    if (!res) throw new Error("Can’t reach the server. Check the internet connection.");
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || "That didn’t work (" + res.status + ")");
+    return out;
+  }
 };
 
 /* ============================================================
@@ -151,6 +174,7 @@ async function afterSignIn(){
   }
   hideGate();
   applyRole();
+  db.touch().catch(() => {});      /* the Users tab shows when each person was last here */
   await bootData();
 }
 
@@ -249,6 +273,19 @@ $("#b-pending-out").addEventListener("click", async () => {
   await sb.signOut();
   location.reload();
 });
+/* Lock puts the gate back up without ending the session, so stepping away from
+   a shared label PC does not cost the next person a full sign-in. The password
+   is still required to get back in — the session is only unlocked, not kept
+   open — but the email is already filled in. */
+$("#b-lock").addEventListener("click", () => {
+  const u = sb.user();
+  $("#li-email").value = (u && u.email) || "";
+  $("#li-pass").value  = "";
+  $("#li-msg").textContent = "Locked. Sign in to carry on.";
+  showGate("login");
+  setTimeout(() => $("#li-pass").focus(), 80);
+});
+
 $("#b-refresh").addEventListener("click", async () => {
   $("#b-refresh").disabled = true;
   try { await db.loadAll(); renderCustomers(); renderLog(); adoptProfile(); toast("Up to date"); }
@@ -261,45 +298,125 @@ async function refreshProfiles(){
   try { profiles = await db.loadProfiles() || []; } catch (e){ return dbErr(e); }
   renderProfiles();
 }
+const ROLE_LABEL = { admin: "ADMIN", operator: "OPERATOR", pending: "PENDING" };
+function stampSeen(iso){
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return "—";
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
 function renderProfiles(){
   const waiting = profiles.filter(p => p.role === "pending").length;
-  $("#usr-count").textContent = profiles.length + (profiles.length === 1 ? " account" : " accounts") +
+  $("#usr-count").textContent = profiles.length + (profiles.length === 1 ? " user" : " users") +
     (waiting ? " · " + waiting + " waiting" : "");
-  $("#usr-body").innerHTML = profiles.length ? profiles.map(p =>
+  $("#usr-body").innerHTML = profiles.length ? profiles.map((p,i) =>
     "<tr><td>" + esc(p.name || "—") + (me && p.id === me.id ? ' <span class="cd">· you</span>' : "") +
-    '</td><td><select class="rowrole" data-id="' + p.id + '"' + (me && p.id === me.id ? " disabled" : "") + ">" +
-      ["admin","operator","pending"].map(r =>
-        '<option value="' + r + '"' + (p.role === r ? " selected" : "") + ">" +
-        { admin:"Administrator", operator:"Operator", pending:"Pending — no access" }[r] + "</option>").join("") +
-    "</select></td>" +
-    '<td class="mono">' + esc((p.created_at || "").slice(0,10)) + '</td>' +
-    '<td class="acts">' + (me && p.id === me.id ? "" :
-      '<button class="btn tiny danger" data-udel="' + p.id + '">Remove</button>') + "</td></tr>").join("")
-    : '<tr><td colspan="4" class="empty">No accounts yet.</td></tr>';
+    '</td><td class="mono">' + esc(p.email || "—") + "</td>" +
+    '<td><span class="chip">' + (ROLE_LABEL[p.role] || esc(p.role)) + "</span></td>" +
+    '<td class="mono">' + esc(stampSeen(p.last_seen)) + "</td>" +
+    '<td class="acts"><button class="btn tiny" data-uedit="' + i + '">Edit</button> ' +
+    (me && p.id === me.id ? "" : '<button class="btn tiny danger" data-udel="' + i + '">Delete</button>') +
+    "</td></tr>").join("")
+    : '<tr><td colspan="5" class="empty">No users yet.</td></tr>';
 }
-$("#usr-body").addEventListener("change", async e => {
-  const sel = e.target.closest(".rowrole");
-  if (!sel || !isAdmin()) return;
-  const id = sel.dataset.id, role = sel.value;
-  const admins = profiles.filter(p => p.role === "admin" && p.id !== id).length;
-  if (role !== "admin" && admins === 0){
-    $("#usr-msg").textContent = "Keep at least one administrator.";
-    return refreshProfiles();
+
+/* The add form doubles as the edit form, exactly as the product and customer
+   forms do. Editing an existing user leaves the password boxes optional —
+   filling them in sets a new password, leaving them blank keeps the old one. */
+let editingUser = null;
+function clearUserForm(){
+  ["u-name","u-user","u-pin","u-pin2"].forEach(id => $("#" + id).value = "");
+  $("#u-role").value = "operator";
+  $("#u-user").disabled = false;
+  editingUser = null;
+  $("#usr-title").textContent = "Add a user";
+  $("#b-uadd").textContent = "Add user";
+  $("#b-ucancel").style.display = "none";
+  $("#usr-msg").textContent = "";
+  $("#u-pin").placeholder = "";
+  $("#u-pin2").placeholder = "";
+}
+function editUser(i){
+  const p = profiles[i]; if (!p) return;
+  editingUser = p.id;
+  $("#u-name").value = p.name || "";
+  $("#u-user").value = p.email || "";
+  $("#u-user").disabled = true;                 /* the login address itself is not ours to change */
+  $("#u-role").value = p.role === "admin" ? "admin" : "operator";
+  $("#u-pin").value = ""; $("#u-pin2").value = "";
+  $("#u-pin").placeholder = "leave blank to keep";
+  $("#u-pin2").placeholder = "leave blank to keep";
+  $("#usr-title").textContent = "Edit user";
+  $("#b-uadd").textContent = "Save changes";
+  $("#b-ucancel").style.display = "";
+  $("#usr-msg").textContent = "";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  $("#u-name").focus();
+}
+
+$("#b-uadd").addEventListener("click", async () => {
+  if (!isAdmin()) return;
+  const msg  = $("#usr-msg");
+  const name = $("#u-name").value.trim();
+  const user = $("#u-user").value.trim();
+  const role = $("#u-role").value;
+  const p1   = $("#u-pin").value, p2 = $("#u-pin2").value;
+  msg.style.color = "";
+  if (!name) return void (msg.textContent = "A name is required.");
+  if (!user) return void (msg.textContent = "A username is required.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user))
+    return void (msg.textContent = "The username is the person’s work email address.");
+  if (p1 !== p2) return void (msg.textContent = "Those two do not match.");
+  if (!editingUser && p1.length < 6) return void (msg.textContent = "The password needs at least 6 characters.");
+
+  /* Never leave the app without an administrator. */
+  if (editingUser && role !== "admin"){
+    const others = profiles.filter(p => p.role === "admin" && p.id !== editingUser).length;
+    if (!others) return void (msg.textContent = "Keep at least one administrator.");
   }
-  try { await db.setRole(id, role); toast("Role updated"); await refreshProfiles(); }
-  catch (err){ dbErr(err); refreshProfiles(); }
-});
-$("#usr-body").addEventListener("click", async e => {
-  const del = e.target.closest("[data-udel]");
-  if (!del || !isAdmin()) return;
-  const id = del.dataset.udel;
-  const p = profiles.find(x => x.id === id);
-  if (p && p.role === "admin" && profiles.filter(x => x.role === "admin").length === 1)
-    return void ($("#usr-msg").textContent = "Keep at least one administrator.");
-  if (!confirm("Remove " + ((p && p.name) || "this account") + "’s access?")) return;
+
+  $("#b-uadd").disabled = true;
+  msg.textContent = editingUser ? "Saving…" : "Creating the account…";
   try {
-    await db.removeProfile(id);
+    if (editingUser){
+      await db.setName(editingUser, name);
+      await db.setRole(editingUser, role);
+      if (p1) await db.admin("password", { id: editingUser, password: p1 });
+      toast("User updated");
+    } else {
+      const out = await db.admin("create", { name, email: user, password: p1, role });
+      toast(out.adopted ? user + " already had a login — access granted" : "Added " + name);
+    }
+    clearUserForm();
+    await refreshProfiles();
+  } catch (err){
+    msg.style.color = "var(--bad)";
+    msg.textContent = err.message;
+  } finally { $("#b-uadd").disabled = false; }
+});
+$("#b-ucancel").addEventListener("click", clearUserForm);
+
+$("#usr-body").addEventListener("click", async e => {
+  if (!isAdmin()) return;
+  const ed  = e.target.closest("[data-uedit]");
+  const del = e.target.closest("[data-udel]");
+  if (ed) return editUser(+ed.dataset.uedit);
+  if (!del) return;
+  const p = profiles[+del.dataset.udel]; if (!p) return;
+  if (p.role === "admin" && profiles.filter(x => x.role === "admin").length === 1)
+    return void ($("#usr-msg").textContent = "Keep at least one administrator.");
+  if (!confirm("Remove " + (p.name || "this user") + "’s access to the label app?\n\n" +
+               "Their Meatplus login stays as it is — this only takes away the label app.")) return;
+  try {
+    await db.admin("revoke", { id: p.id });
+    if (editingUser === p.id) clearUserForm();
     toast("Access removed");
     await refreshProfiles();
   } catch (err){ dbErr(err); }
 });
+
+$("#b-uexport").addEventListener("click", () => download("users.csv",
+  csvRows(["name","username","role","last_signed_in"],
+    profiles.map(p => [p.name || "", p.email || "", p.role, p.last_seen ? stampSeen(p.last_seen) : ""])),
+  "text/csv"));
