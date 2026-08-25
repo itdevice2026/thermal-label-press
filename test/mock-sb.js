@@ -23,10 +23,17 @@
   const KEY = "mock.db";
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw){ const saved = JSON.parse(raw); Object.keys(saved).forEach(k => DB[k] = saved[k]); seq = saved.__seq || 0; }
+    if (raw){
+      const saved = JSON.parse(raw);
+      seq = saved.__seq || 0;
+      /* __seq is bookkeeping, not a table. Copying it into DB would let the
+         stale value win the Object.assign in persist() below, freezing the id
+         counter and handing two people the same id after a reload. */
+      Object.keys(saved).forEach(k => { if (k !== "__seq") DB[k] = saved[k]; });
+    }
   } catch(e){}
   function persist(){
-    try { localStorage.setItem(KEY, JSON.stringify(Object.assign({ __seq: seq }, DB))); } catch(e){}
+    try { localStorage.setItem(KEY, JSON.stringify(Object.assign({}, DB, { __seq: seq }))); } catch(e){}
   }
 
   function table(name){ return DB[name] || (DB[name] = []); }
@@ -58,15 +65,25 @@
   P.user = function(){ return this.session && this.session.user; };
   P.ensureFresh = async function(){ return this.session; };
 
+  P.rpc = async function(fn){
+    if (fn === "lbl_touch"){
+      const u = this.user();
+      const p = u && DB.lbl_profiles.find(x => x.id === u.id);
+      if (p){ p.last_seen = new Date().toISOString(); persist(); }
+      return null;
+    }
+    return null;
+  };
+
   P.signUp = async function(email, password, meta){
     if (!/@meatplus\.ph$/i.test(email)) throw new Error("Sign-up restricted to @meatplus.ph addresses");
     if (DB.users.some(u => u.email === email)) throw new Error("User already registered");
     const u = { id: uid(), email, password, name: (meta && meta.name) || email.split("@")[0] };
     DB.users.push(u);
     DB.lbl_profiles.push({
-      id: u.id, name: u.name,
+      id: u.id, name: u.name, email: u.email,
       role: DB.lbl_profiles.length === 0 ? "admin" : "pending",
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(), last_seen: null
     });
     this.session = { access_token: "t-" + u.id, user: { id: u.id, email: u.email } };
     this._save(); persist();
@@ -97,6 +114,7 @@
     if (role(self) !== "admin") { const e = new Error("permission denied for " + tbl); e.status = 401; throw e; }
   }
   const REFERENCE = ["lbl_customers","lbl_products","lbl_settings"];
+  const APPROVABLE = ["lbl_customers","lbl_products"];
 
   P.select = async function(tbl, query){
     const q = query || "";
@@ -118,7 +136,17 @@
   };
 
   P.insert = async function(tbl, rows){
-    if (REFERENCE.indexOf(tbl) >= 0) requireAdmin(this, tbl);
+    /* Operators may propose a product or customer, but only as pending and
+       only under their own name — mirrors the row-level policies. */
+    if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
+      const u = this.user();
+      rows.forEach(r => {
+        if (r.status !== "pending" || r.created_by !== (u && u.id)){
+          const e = new Error("new row violates row-level security policy"); e.status = 401; throw e;
+        }
+      });
+    }
+    else if (REFERENCE.indexOf(tbl) >= 0) requireAdmin(this, tbl);
     else requireStaff(this, tbl);
     const out = rows.map(r => {
       const row = Object.assign({ id: uid() }, r);
@@ -150,6 +178,18 @@
   };
 
   P.update = async function(tbl, match, patch){
+    if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
+      const u = this.user();
+      const rows = table(tbl).filter(r => matches(r, match));
+      const mine = rows.filter(r => r.created_by === (u && u.id) && r.status === "pending");
+      /* A row policy cannot restrict columns; staying pending is the check. */
+      if (mine.length !== rows.length || (patch.status && patch.status !== "pending")){
+        const e = new Error("new row violates row-level security policy"); e.status = 401; throw e;
+      }
+      mine.forEach(r => Object.assign(r, patch));
+      persist();
+      return mine;
+    }
     if (tbl === "lbl_profiles") requireAdmin(this, tbl);
     else if (REFERENCE.indexOf(tbl) >= 0) requireAdmin(this, tbl);
     else requireStaff(this, tbl);
@@ -160,6 +200,15 @@
   };
 
   P.remove = async function(tbl, match){
+    if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
+      const u = this.user();
+      const rows = table(tbl).filter(r => matches(r, match));
+      const mine = rows.filter(r => r.created_by === (u && u.id) && r.status === "pending");
+      if (mine.length !== rows.length){ const e = new Error("permission denied"); e.status = 401; throw e; }
+      DB[tbl] = table(tbl).filter(r => mine.indexOf(r) < 0);
+      persist();
+      return mine;
+    }
     requireAdmin(this, tbl);
     const keep = [], gone = [];
     table(tbl).forEach(r => (matches(r, match) ? gone : keep).push(r));
@@ -172,6 +221,73 @@
     DB[tbl] = keep;
     persist();
     return gone;
+  };
+
+  /* ---------------------------------------------------------------------
+     The lbl-users Edge Function, stood in for.
+
+     The real one holds the service-role key and refuses anyone who is not an
+     administrator. The stand-in mirrors that refusal exactly, so a test that
+     passes here would also have been refused by the server — and the app's
+     own fetch code is the code under test, unchanged.
+     --------------------------------------------------------------------- */
+  const realFetch = global.fetch.bind(global);
+  global.fetch = function(url, init){
+    if (String(url).indexOf("/functions/v1/lbl-users") < 0) return realFetch(url, init);
+
+    const json = (body, status) => Promise.resolve({
+      ok: status < 400, status,
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body))
+    });
+
+    const auth = (init && init.headers && init.headers.Authorization) || "";
+    const token = auth.replace(/^Bearer\s+/, "");
+    const caller = DB.users.find(u => ("t-" + u.id) === token);
+    if (!caller) return json({ error: "Not signed in" }, 401);
+    const cp = DB.lbl_profiles.find(p => p.id === caller.id);
+    if (!cp || cp.role !== "admin") return json({ error: "Only an administrator can manage accounts" }, 403);
+
+    let body = {};
+    try { body = JSON.parse((init && init.body) || "{}"); } catch(e){}
+
+    if (body.action === "create"){
+      const email = String(body.email || "").toLowerCase();
+      const name  = String(body.name || "").trim();
+      const pass  = String(body.password || "");
+      const role  = ["admin","operator","pending"].indexOf(body.role) >= 0 ? body.role : "operator";
+      if (!name)  return json({ error: "A name is required" }, 400);
+      if (!email) return json({ error: "A username is required" }, 400);
+      let u = DB.users.find(x => x.email.toLowerCase() === email);
+      const adopted = !!u;
+      if (u){ if (pass) u.password = pass; }
+      else {
+        if (pass.length < 6) return json({ error: "The password needs at least 6 characters" }, 400);
+        u = { id: uid(), email, password: pass, name };
+        DB.users.push(u);
+      }
+      const hit = DB.lbl_profiles.find(p => p.id === u.id);
+      if (hit) Object.assign(hit, { name, email, role });
+      else DB.lbl_profiles.push({ id: u.id, name, email, role, created_at: new Date().toISOString(), last_seen: null });
+      persist();
+      return json({ ok: true, id: u.id, adopted }, 200);
+    }
+
+    if (body.action === "password"){
+      const u = DB.users.find(x => x.id === body.id);
+      if (!u) return json({ error: "Which account?" }, 400);
+      if (String(body.password || "").length < 6) return json({ error: "The password needs at least 6 characters" }, 400);
+      u.password = body.password; persist();
+      return json({ ok: true }, 200);
+    }
+
+    if (body.action === "revoke"){
+      if (body.id === caller.id) return json({ error: "You cannot remove your own access" }, 400);
+      DB.lbl_profiles = DB.lbl_profiles.filter(p => p.id !== body.id);
+      persist();
+      return json({ ok: true }, 200);
+    }
+    return json({ error: "Unknown action" }, 400);
   };
 
   global.SB = SBMock;

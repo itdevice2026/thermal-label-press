@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thermal Label Press</title>
+<meta name="description" content="Customer-based Code 128 label generator for Zebra and Godex thermal printers.">
+<meta name="theme-color" content="#0F5C63">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect width='22' height='22' rx='4' fill='%230F5C63'/%3E%3Cg fill='white'%3E%3Crect x='4.5' y='5' width='1.6' height='12'/%3E%3Crect x='7.2' y='5' width='0.9' height='12'/%3E%3Crect x='9.2' y='5' width='2' height='12'/%3E%3Crect x='12.2' y='5' width='0.9' height='12'/%3E%3Crect x='14.2' y='5' width='1.3' height='12'/%3E%3Crect x='16.6' y='5' width='1.6' height='12'/%3E%3C/g%3E%3C/svg%3E">
+</head>
+<body class="locked">
+<header class="bar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <rect x="1" y="3" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <g fill="currentColor">
+        <rect x="4.5" y="6.5" width="1.4" height="9"/><rect x="7" y="6.5" width="0.8" height="9"/>
+        <rect x="9" y="6.5" width="1.8" height="9"/><rect x="11.8" y="6.5" width="0.8" height="9"/>
+        <rect x="13.8" y="6.5" width="1.2" height="9"/><rect x="16.2" y="6.5" width="1.4" height="9"/>
+      </g>
+    </svg>
+    <span>Thermal Label Press</span>
+    <span class="sub">Code 128</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="print">Print</button>
+    <button role="tab" aria-selected="false" data-tab="products">Products <span class="badge" id="pend-prod" hidden></span></button>
+    <button role="tab" aria-selected="false" data-tab="customers">Customers <span class="badge" id="pend-cust" hidden></span></button>
+    <button role="tab" aria-selected="false" data-tab="log">Print log</button>
+    <button role="tab" aria-selected="false" data-tab="setup" data-admin="1">Label setup</button>
+    <button role="tab" aria-selected="false" data-tab="users" data-admin="1">Users</button>
+  </nav>
+  <div class="who" id="who">
+    <span class="whoName" id="who-name"></span>
+    <span class="chip" id="who-role"></span>
+    <button class="btn ghost tiny" id="b-refresh" title="Reload from the database">Refresh</button>
+    <button class="btn ghost tiny" id="b-lock" title="Lock the station">Lock</button>
+    <button class="btn ghost tiny" id="b-signout">Sign out</button>
+  </div>
+</header>
+
+<!-- ============ SIGN IN ============ -->
+<div id="gate" hidden>
+  <div class="gateCard">
+    <div class="gateLogo"><img src="meatplus.webp" alt="Meatplus Trading Corporation" width="220" height="162"></div>
+    <div class="gateBrand">
+      <svg width="26" height="26" viewBox="0 0 22 22" aria-hidden="true">
+        <rect x="1" y="3" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <g fill="currentColor">
+          <rect x="4.5" y="6.5" width="1.4" height="9"/><rect x="7" y="6.5" width="0.8" height="9"/>
+          <rect x="9" y="6.5" width="1.8" height="9"/><rect x="11.8" y="6.5" width="0.8" height="9"/>
+          <rect x="13.8" y="6.5" width="1.2" height="9"/><rect x="16.2" y="6.5" width="1.4" height="9"/>
+        </g>
+      </svg>
+      <span>Thermal Label Press</span>
+    </div>
+
+    <form id="login-panel" hidden autocomplete="on">
+      <h1>Sign in</h1>
+      <p class="gateNote">Your work email and password.</p>
+      <div class="field"><label for="li-email">Email</label><input type="email" id="li-email" autocomplete="username" required></div>
+      <div class="field"><label for="li-pass">Password</label><input type="password" id="li-pass" autocomplete="current-password" required></div>
+      <div class="gateMsg" id="li-msg"></div>
+      <button class="btn primary wide" type="submit">Sign in</button>
+      <p class="gateSwap">No account yet? <a href="#" data-gate="signup">Create one</a></p>
+    </form>
+
+    <form id="signup-panel" hidden autocomplete="on">
+      <h1>Create your account</h1>
+      <p class="gateNote">Your name goes on every label run you print.</p>
+      <div class="field"><label for="su-name">Your name</label><input type="text" id="su-name" autocomplete="name" required></div>
+      <div class="field"><label for="su-email">Work email</label><input type="email" id="su-email" autocomplete="username" required></div>
+      <div class="field"><label for="su-pass">Password</label><input type="password" id="su-pass" autocomplete="new-password" required></div>
+      <div class="field"><label for="su-pass2">Repeat it</label><input type="password" id="su-pass2" autocomplete="new-password" required></div>
+      <div class="gateMsg" id="su-msg"></div>
+      <button class="btn primary wide" type="submit">Create account</button>
+      <p class="gateSwap">Already have one? <a href="#" data-gate="login">Sign in</a></p>
+    </form>
+
+    <div id="pending-panel" hidden>
+      <h1>Waiting for approval</h1>
+      <p class="gateNote">You are signed in as <b id="pending-who"></b>, but no role has been set yet.
+        Ask an administrator to give you one on the Users tab.</p>
+      <button class="btn wide" id="b-pending-out">Sign out</button>
+    </div>
+
+    <p class="gateFoot">What each person may read or change is decided by the database, not by this page.</p>
+  </div>
+</div>
+
+<main class="wrap">
+
+<!-- ============ PRINT ============ -->
+<section class="panel on" id="p-print">
+<div class="split">
+
+  <div>
+    <div class="card">
+      <h2>Label content</h2>
+      <div class="body">
+        <div class="grid2">
+          <div class="field span2">
+            <label for="f-cust">Customer</label>
+            <div class="custRow"><select id="f-cust"></select><span id="f-cust-mark"></span></div>
+            <span class="hint">Every product belongs to a customer. Choosing one narrows the product list and is recorded in the print log — customer details never appear on the label.</span>
+          </div>
+          <div class="field span2">
+            <label for="f-pick">Product</label>
+            <select id="f-pick"></select>
+            <span class="hint">Pick a saved product to fill the name, size and barcode. Choose “Custom entry” to type a one-off label.</span>
+          </div>
+          <div class="field span2">
+            <label for="f-name">Product name</label>
+            <input type="text" id="f-name" placeholder="AllJoy Chicken Liver">
+          </div>
+          <div class="field">
+            <label for="f-size">Pack size</label>
+            <input type="text" id="f-size" placeholder="250g">
+          </div>
+          <div class="field">
+            <label for="f-code">Barcode number</label>
+            <input type="text" id="f-code" class="mono" placeholder="39012472" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="f-pd">Production date</label>
+            <input type="date" id="f-pd">
+            <div class="row"><button class="btn tiny" data-pd="today">Today</button></div>
+          </div>
+          <div class="field">
+            <label for="f-ed">Expiry date</label>
+            <input type="date" id="f-ed">
+            <div class="row">
+              <button class="btn tiny" data-shelf="3">+3 mo</button>
+              <button class="btn tiny" data-shelf="6">+6 mo</button>
+              <button class="btn tiny" data-shelf="12">+1 yr</button>
+              <button class="btn tiny" data-shelf="24">+2 yr</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-copies">Copies</label>
+            <input type="number" id="f-copies" value="1" min="1" max="500" class="mono">
+          </div>
+          <div class="field">
+            <span class="lbl">Catalog</span>
+            <button class="btn" id="b-save">Save to products</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Print queue <span class="count" id="q-count">0 labels</span></h2>
+      <div id="q-list"><div class="empty">Nothing queued. Add labels here to print several products in one run.</div></div>
+      <div class="body row" style="border-top:1px solid var(--line-2)">
+        <button class="btn primary" id="b-printq">Print queue</button>
+        <button class="btn" id="b-addq">Add current label</button>
+        <button class="btn ghost danger" id="b-clearq">Clear</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Printer command · ZPL</h2>
+      <div class="body">
+        <pre class="zpl" id="zpl"></pre>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="b-copyzpl">Copy ZPL</button>
+          <button class="btn" id="b-dlzpl">Download .zpl</button>
+          <span class="hint">Send straight to a Zebra printer (or a Godex model running ZPL emulation) — no driver, no browser margins.
+            The file is ready to send with Zebra Setup Utilities, <span class="mono">copy /b</span> to a shared printer, or port 9100.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="previewWrap">
+    <div class="card">
+      <h2>Preview <span class="count" id="pv-scale"></span></h2>
+      <div class="stage" id="stage"><div class="stageInner" id="stageInner"></div></div>
+      <div class="specs" id="specs"></div>
+      <div id="flags"></div>
+      <div class="body row" style="padding-top:4px">
+        <button class="btn primary" id="b-print">Print label</button>
+        <button class="btn" id="b-zoom">Zoom</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ============ PRODUCTS ============ -->
+<section class="panel" id="p-products">
+  <div class="card">
+    <h2 id="prod-title">Add a product</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="n-name">Product name</label><input type="text" id="n-name" placeholder="AllJoy Beef Tapa"></div>
+        <div class="field"><label for="n-size">Pack size</label><input type="text" id="n-size" placeholder="500g"></div>
+        <div class="field"><label for="n-code">Barcode number</label><input type="text" id="n-code" class="mono" placeholder="39012473"></div>
+        <div class="field" style="grid-column:span 2"><label for="n-cust">Customer</label><select id="n-cust"></select></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-add">Add product</button>
+        <button class="btn ghost" id="b-pcancel" style="display:none">Cancel</button>
+        <span class="hint" id="add-msg"></span>
+        <span class="hint" data-op="1">New products are sent to an administrator for approval before they can be printed.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Saved products <span class="count" id="cat-count"></span></h2>
+    <div id="cat-warn"></div>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>Product</th><th>Size</th><th>Barcode</th><th>Customer</th><th></th></tr></thead>
+        <tbody id="cat-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-export">Export CSV</button>
+      <button class="btn" id="b-import" data-admin="1">Import CSV</button>
+      <input type="file" id="f-file" accept=".csv,text/csv" style="display:none">
+      <span class="hint">Columns: name, size, code, customer. Import adds new codes and updates matching ones; either “customer” or “company” works as the column name. This is how you bring across the CSVs exported from the offline label station.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CUSTOMERS ============ -->
+<section class="panel" id="p-customers">
+  <div class="card">
+    <h2 id="cus-title">Add a customer</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="c-name">Customer name</label><input type="text" id="c-name" placeholder="AllJoy Foods"></div>
+        <div class="field"><label for="c-code">Customer code</label><input type="text" id="c-code" class="mono" placeholder="ALLJOY"></div>
+        <div class="field"><label for="c-contact">Contact person</label><input type="text" id="c-contact" placeholder="Ms. Rivera · 0917 000 0000"></div>
+        <div class="field" style="grid-column:span 2"><label for="c-addr">Address</label><input type="text" id="c-addr" placeholder="Quezon City"></div>
+        <div class="field"><label for="c-notes">Notes</label><input type="text" id="c-notes" placeholder="Deliveries Tue &amp; Fri"></div>
+        <div class="field"><label>Logo</label>
+          <div class="logoPick">
+            <span class="logoBox" id="c-logo-box"><span class="logoNone">none</span></span>
+            <button class="btn tiny" id="b-clogo" type="button">Choose…</button>
+            <button class="btn tiny ghost danger" id="b-clogo-x" type="button" style="display:none">Remove</button>
+            <input type="file" id="c-logo-file" accept="image/*" style="display:none">
+          </div>
+        </div>
+        <div class="field"><label for="c-w">Label width (mm)</label><input type="number" id="c-w" class="mono" step="0.5" min="20" placeholder="house default"></div>
+        <div class="field"><label for="c-h">Label height (mm)</label><input type="number" id="c-h" class="mono" step="0.5" min="15" placeholder="house default"></div>
+        <div class="field" style="display:flex;justify-content:flex-end">
+          <span class="hint">Leave the size blank to follow the house default. Setting it gives this customer its own stock, sized to fit automatically — fine-tune it any time on the Label setup tab.</span>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-cadd">Add customer</button>
+        <button class="btn ghost" id="b-ccancel" style="display:none">Cancel</button>
+        <span class="hint" id="cus-msg"></span>
+        <span class="hint" data-op="1">New customers are sent to an administrator for approval before they can be used.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Customers <span class="count" id="cus-count"></span></h2>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>Customer</th><th>Code</th><th>Label stock</th><th>Contact</th><th>Address</th><th>Notes</th><th>Products</th><th></th></tr></thead>
+        <tbody id="cus-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-cexport">Export CSV</button>
+      <button class="btn" id="b-cimport" data-admin="1">Import CSV</button>
+      <input type="file" id="c-file" accept=".csv,text/csv" style="display:none">
+      <span class="hint">Columns: name, code, contact, address, notes. Logos are not part of the CSV — set those here.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ USERS ============ -->
+<section class="panel" id="p-users">
+  <div class="card">
+    <h2 id="usr-title">Add a user</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="u-name">Name</label><input type="text" id="u-name" autocomplete="off" placeholder="Rosa dela Cruz"></div>
+        <div class="field"><label for="u-user">Username</label><input type="text" id="u-user" autocomplete="off" placeholder="rosa.delacruz@meatplus.ph"></div>
+        <div class="field"><label for="u-role">Role</label>
+          <select id="u-role">
+            <option value="operator">Operator — print and view the log</option>
+            <option value="admin">Administrator — everything</option>
+          </select>
+        </div>
+        <div class="field"><label for="u-pin">PIN or password</label><input type="password" id="u-pin" autocomplete="new-password"></div>
+        <div class="field"><label for="u-pin2">Repeat it</label><input type="password" id="u-pin2" autocomplete="new-password"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-uadd">Add user</button>
+        <button class="btn ghost" id="b-ucancel" style="display:none">Cancel</button>
+        <span class="hint" id="usr-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Users <span class="count" id="usr-count"></span></h2>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Last signed in</th><th></th></tr></thead>
+        <tbody id="usr-body"></tbody>
+      </table>
+    </div>
+    <div class="body" style="border-top:1px solid var(--line-2)">
+      <div class="flag ok"><span class="ic">▣</span><span>Accounts are real logins in your Supabase project and what each
+        role may read or change is enforced by the database, not by this page — so the rules hold however the page is
+        opened. Passwords are set through a server-side function that checks you are an administrator first; the key
+        that can create a login is never sent to this browser.</span></div>
+      <div class="flag warn" style="margin-top:10px"><span class="ic">△</span><span>This project's logins are shared with
+        the other Meatplus apps. <b>Delete</b> here removes access to the label app only — it does not delete the
+        person's login, so they keep working in those. If the username already has a login, adding it here gives that
+        person label access instead of making a second account; leave the password blank to keep theirs as it is.</span></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="b-uexport">Export users CSV</button>
+        <span class="hint">Names, usernames and roles only — passwords are never exported.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRINT LOG ============ -->
+<section class="panel" id="p-log">
+  <div class="card">
+    <h2>Print log <span class="count" id="log-count"></span></h2>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>When</th><th>By</th><th>Customer</th><th>Product</th><th>Size</th><th>Barcode</th><th>Dates</th><th>Labels</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-lexport">Export CSV</button>
+      <button class="btn ghost danger" id="b-lclear" data-admin="1">Clear log</button>
+      <span class="hint">Every print run is recorded here — the last 2,000 runs are kept.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SETUP ============ -->
+<section class="panel" id="p-setup">
+  <div class="split">
+    <div>
+      <div class="card">
+        <h2>Label stock</h2>
+        <div id="scope" style="padding:14px 18px 0"></div>
+        <div class="body">
+          <div class="grid3">
+            <div class="field span2" style="grid-column:span 3">
+              <label for="s-preset">Size preset</label>
+              <select id="s-preset">
+                <option value="50x30">50 × 30 mm  (2.0 × 1.2 in)</option>
+                <option value="50x25">50 × 25 mm  (2.0 × 1.0 in)</option>
+                <option value="57x32">57 × 32 mm</option>
+                <option value="60x40">60 × 40 mm</option>
+                <option value="40x30">40 × 30 mm</option>
+                <option value="76x51">76 × 51 mm  (3.0 × 2.0 in)</option>
+                <option value="100x50">100 × 50 mm (4.0 × 2.0 in)</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+            <div class="field"><label for="s-w">Width (mm)</label><input type="number" id="s-w" class="mono" step="0.5" min="20"></div>
+            <div class="field"><label for="s-h">Height (mm)</label><input type="number" id="s-h" class="mono" step="0.5" min="15"></div>
+            <div class="field"><label for="s-pad">Margin (mm)</label><input type="number" id="s-pad" class="mono" step="0.5" min="0"></div>
+            <div class="field"><label for="s-dpi">Printer resolution</label>
+              <select id="s-dpi"><option value="203">203 dpi (8 dots/mm)</option><option value="300">300 dpi (12 dots/mm)</option><option value="600">600 dpi (24 dots/mm)</option></select>
+            </div>
+            <div class="field"><label for="s-dark">Darkness (ZPL)</label><input type="number" id="s-dark" class="mono" min="0" max="30" step="1"></div>
+            <div class="field"><label for="s-speed">Print speed (ips)</label><input type="number" id="s-speed" class="mono" min="2" max="12" step="1"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Barcode measurement</h2>
+        <div class="body">
+          <div class="grid3">
+            <div class="field" style="grid-column:span 3">
+              <label for="s-barmode">Sizing method</label>
+              <select id="s-barmode">
+                <option value="width">Set the barcode size — bars adjust to fit</option>
+                <option value="module">Set the module width — barcode grows with longer numbers</option>
+              </select>
+            </div>
+            <div class="field" id="fld-barw"><label for="s-barw">Barcode width (mm)</label><input type="number" id="s-barw" class="mono" step="0.5" min="10"></div>
+            <div class="field"><label for="s-bar">Barcode height (mm)</label><input type="number" id="s-bar" class="mono" step="0.5" min="3"></div>
+            <div class="field" id="fld-mod"><label for="s-mod">Module width (mm)</label><input type="number" id="s-mod" class="mono" step="0.01" min="0.15"></div>
+            <div class="field" style="grid-column:span 3">
+              <label for="s-suffix">What the scanner types after the number</label>
+              <select id="s-suffix">
+                <option value="lf">Enter — line feed (matches the sample label)</option>
+                <option value="cr">Enter — carriage return</option>
+                <option value="crlf">Enter — carriage return + line feed</option>
+                <option value="tab">Tab</option>
+                <option value="">Nothing — just the number</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <span class="hint" id="bar-readout"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Typography</h2>
+        <div class="body">
+          <div class="grid3">
+            <div class="field"><label for="s-title">Name size (mm)</label><input type="number" id="s-title" class="mono" step="0.1" min="1"></div>
+            <div class="field"><label for="s-date">Date size (mm)</label><input type="number" id="s-date" class="mono" step="0.1" min="1"></div>
+            <div class="field"><label for="s-num">Number size (mm)</label><input type="number" id="s-num" class="mono" step="0.1" min="1"></div>
+            <div class="field"><label for="s-fmt">Date format</label>
+              <select id="s-fmt">
+                <option value="mdy">Aug 20,2026</option>
+                <option value="dmy">20 Aug 2026</option>
+                <option value="iso">2026-08-20</option>
+                <option value="slash">08/20/2026</option>
+              </select>
+            </div>
+            <div class="field"><label for="s-pdl">“Produced” label</label><input type="text" id="s-pdl"></div>
+            <div class="field"><label for="s-edl">“Expires” label</label><input type="text" id="s-edl"></div>
+            <div class="field"><label for="s-shownum">Number under bars</label>
+              <select id="s-shownum"><option value="1">Show</option><option value="0">Hide</option></select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:16px">
+            <button class="btn" id="b-fit">Auto-fit to stock</button>
+            <button class="btn ghost" id="b-reset">Reset to defaults</button>
+            <span class="hint">Auto-fit sizes the text and bars to fill the current label.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="previewWrap">
+      <div class="card">
+        <h2>Live preview</h2>
+        <div class="stage" id="stage2"><div class="stageInner" id="stageInner2"></div></div>
+        <div class="specs" id="specs2"></div>
+        <div id="flags2" style="padding-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Printing notes</h2>
+        <div class="body" style="font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;gap:10px">
+          <p style="margin:0"><b style="color:var(--ink)">Browser printing.</b> In the print dialog choose your Zebra or Godex driver, set paper to the same size as above, scale to 100% (not “fit to page”), and turn margins off. The page size is already embedded in the label.</p>
+          <p style="margin:0"><b style="color:var(--ink)">Direct ZPL.</b> Copying the ZPL and sending it to the printer’s port skips the driver entirely and gives the sharpest bars, because the printer renders them at exact dot boundaries. The layout matches, but the text comes out in the printer’s own built-in font — print through the driver when you want the typewriter face of the sample label.</p>
+          <p style="margin:0"><b style="color:var(--ink)">Scan quality.</b> Keep the module width at or above 0.25 mm and the barcode at least 8 mm tall. The module width is the width of the thinnest bar: widen the barcode to raise it, and remember that a longer barcode number divides the same width into more bars. Anything thinner than one printer dot cannot print cleanly and will fail to scan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script src="../config.js"></script>
+<script src="mock-sb.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/label.js"></script>
+<script src="../js/lists.js"></script>
+<script src="../js/setup.js"></script>
+<script src="../js/wiring.js"></script>
+</body>
+</html>

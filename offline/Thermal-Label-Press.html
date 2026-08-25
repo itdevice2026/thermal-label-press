@@ -1,0 +1,2132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thermal Label Press</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ground:#EDEFF1;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F8;
+  --ink:#12181B;
+  --ink-2:#4A575E;
+  --ink-3:#78868D;
+  --line:#D6DCDF;
+  --line-2:#E7EBED;
+  --accent:#0F5C63;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#DCEBEC;
+  --warn:#8A5A0B;
+  --warn-soft:#FBEED6;
+  --bad:#9E2F26;
+  --bad-soft:#F8E3E1;
+  --good:#2C6A4B;
+  --shadow:0 1px 2px rgba(18,24,27,.06), 0 8px 24px rgba(18,24,27,.06);
+  --r:10px;
+  --sans:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono:"IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  /* the label's own faces — the typewriter face of the printout, and the
+     grotesque the barcode's number is set in */
+  --label-mono:"Courier New", "Courier Prime", "Nimbus Mono PS", Courier, monospace;
+  --label-num:Arial, "Helvetica Neue", Helvetica, "Liberation Sans", sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1416;
+    --surface:#161E21;
+    --surface-2:#1C262A;
+    --ink:#E8EDEE;
+    --ink-2:#A8B5BA;
+    --ink-3:#7C8B91;
+    --line:#2A363B;
+    --line-2:#222D31;
+    --accent:#4FB3B8;
+    --accent-ink:#062224;
+    --accent-soft:#163537;
+    --warn:#E0B269;
+    --warn-soft:#33280F;
+    --bad:#E58A80;
+    --bad-soft:#361B18;
+    --good:#77C79B;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1416;
+  --surface:#161E21;
+  --surface-2:#1C262A;
+  --ink:#E8EDEE;
+  --ink-2:#A8B5BA;
+  --ink-3:#7C8B91;
+  --line:#2A363B;
+  --line-2:#222D31;
+  --accent:#4FB3B8;
+  --accent-ink:#062224;
+  --accent-soft:#163537;
+  --warn:#E0B269;
+  --warn-soft:#33280F;
+  --bad:#E58A80;
+  --bad-soft:#361B18;
+  --good:#77C79B;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* ---------- top bar ---------- */
+.bar{
+  position:sticky;top:0;z-index:30;
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  padding:10px 20px;
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em}
+.brand svg{display:block}
+.brand .sub{
+  font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.08em;border-left:1px solid var(--line);
+  padding-left:10px;margin-left:2px;
+}
+.tabs{display:flex;gap:2px;margin-left:auto;background:var(--surface-2);padding:3px;border-radius:8px}
+.tabs button{
+  border:0;background:transparent;padding:6px 14px;border-radius:6px;
+  font-size:14px;font-weight:500;color:var(--ink-2);cursor:pointer;
+}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.tabs button:hover:not([aria-selected="true"]){color:var(--ink)}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+.panel{display:none}
+.panel.on{display:block}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:22px;align-items:start}
+@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr)}}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow);
+}
+.card + .card{margin-top:18px}
+.card > h2{
+  margin:0;padding:13px 18px;border-bottom:1px solid var(--line-2);
+  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);
+  display:flex;align-items:center;gap:10px;
+}
+.card > h2 .count{font-family:var(--mono);letter-spacing:0;color:var(--ink-2)}
+.card .body{padding:18px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media (max-width:620px){.grid2,.grid3{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field.span2{grid-column:1/-1}
+.field.off{opacity:.5}
+.field.off input{cursor:not-allowed}
+label,.lbl{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);
+}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  width:100%;padding:9px 11px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:7px;
+}
+input:hover,select:hover{border-color:var(--ink-3)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hint{font-size:12px;color:var(--ink-3)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 15px;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--ink);font-weight:500;cursor:pointer;
+  white-space:nowrap;
+}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2);padding:6px 9px}
+.btn.ghost:hover{background:var(--surface-2);color:var(--ink)}
+.btn.tiny{padding:4px 9px;font-size:12px;font-family:var(--mono)}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- preview ---------- */
+.previewWrap{position:sticky;top:74px}
+.stage{
+  padding:22px;display:flex;justify-content:center;
+  background:
+    linear-gradient(45deg,var(--surface-2) 25%,transparent 25%,transparent 75%,var(--surface-2) 75%) 0 0/16px 16px,
+    linear-gradient(45deg,var(--surface-2) 25%,transparent 25%,transparent 75%,var(--surface-2) 75%) 8px 8px/16px 16px,
+    var(--surface);
+  border-bottom:1px solid var(--line-2);overflow:auto;
+}
+.stageInner{position:relative;flex:0 0 auto}
+.stageInner > .label{transform-origin:top left}
+.specs{
+  display:flex;gap:14px;flex-wrap:wrap;padding:11px 18px;
+  font-family:var(--mono);font-size:12px;color:var(--ink-2);
+  border-bottom:1px solid var(--line-2);
+}
+.specs b{color:var(--ink);font-weight:600}
+.flag{
+  margin:0 18px 14px;padding:9px 12px;border-radius:7px;font-size:13px;
+  display:flex;gap:9px;align-items:flex-start;
+}
+.flag.warn{background:var(--warn-soft);color:var(--warn)}
+.flag.bad{background:var(--bad-soft);color:var(--bad)}
+.flag.ok{background:var(--accent-soft);color:var(--accent)}
+.flag .ic{font-family:var(--mono);font-weight:700}
+
+/* the label itself — fixed white media in both themes, it is physical paper */
+.label{
+  background:#fff;color:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:var(--label-mono);font-weight:700;
+  overflow:hidden;
+  box-shadow:0 0 0 1px rgba(0,0,0,.18);
+}
+.label .ln{text-align:center;width:100%}
+.label .dates{width:100%;text-align:center}
+.label svg{display:block}
+.label .num{font-family:var(--label-num);line-height:1}
+
+/* ---------- queue ---------- */
+.qrow{
+  display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line-2);
+}
+.qrow:last-child{border-bottom:0}
+.qrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrow .cd{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.qty{
+  font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;
+  background:var(--accent-soft);color:var(--accent);
+}
+.empty{padding:26px 18px;text-align:center;color:var(--ink-3);font-size:14px}
+
+/* ---------- table ---------- */
+.tblWrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{
+  text-align:left;padding:9px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap;
+}
+td{padding:9px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+td.acts{text-align:right;white-space:nowrap}
+td select{padding:5px 9px;font-size:13px;min-width:150px}
+td select.unset{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);font-weight:600}
+
+pre.zpl{
+  margin:0;padding:14px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+  font-family:var(--mono);font-size:12px;line-height:1.5;max-height:260px;overflow:auto;white-space:pre;
+}
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(140%);
+  background:var(--ink);color:var(--ground);padding:10px 18px;border-radius:24px;
+  font-size:14px;font-weight:500;z-index:60;transition:transform .25s ease;box-shadow:var(--shadow);
+  visibility:hidden;
+}
+.toast.up{transform:translateX(-50%) translateY(0);visibility:visible}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* ---------- sign in ---------- */
+.who{display:flex;align-items:center;gap:8px;margin-left:14px;padding-left:14px;border-left:1px solid var(--line)}
+.whoName{font-size:14px;font-weight:500}
+.chip{
+  font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent);
+}
+body.locked .bar,body.locked .wrap{display:none}
+#gate{
+  position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:var(--ground);overflow:auto;
+}
+#gate[hidden],#setup-panel[hidden],#login-panel[hidden]{display:none}
+.gateCard{
+  width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;box-shadow:var(--shadow);padding:26px;
+}
+.gateBrand{
+  display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;
+  padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line-2);
+}
+.gateCard h1{margin:0 0 6px;font-size:20px;letter-spacing:-.02em}
+.gateNote{margin:0 0 18px;font-size:14px;color:var(--ink-2)}
+.gateCard .field{margin-bottom:12px}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin:4px 0 14px;cursor:pointer;
+  text-transform:none;letter-spacing:0;font-weight:400}
+.chk input{width:auto;accent-color:var(--accent)}
+.btn.wide{width:100%;padding:11px}
+.gateMsg{font-size:13px;color:var(--bad);min-height:19px;margin-bottom:8px}
+.gateFoot{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--line-2);font-size:12px;line-height:1.5;color:var(--ink-3)}
+@media print{#gate{display:none !important}}
+
+/* ---------- print ---------- */
+#sheet{display:none}
+@media print{
+  body{background:#fff}
+  .bar,.wrap,.toast{display:none !important}
+  #sheet{display:block}
+  #sheet .label{
+    box-shadow:none;break-after:page;page-break-after:always;
+  }
+  #sheet .label:last-child{break-after:auto;page-break-after:auto}
+}
+</style>
+
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <rect x="1" y="3" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <g fill="currentColor">
+        <rect x="4.5" y="6.5" width="1.4" height="9"/><rect x="7" y="6.5" width="0.8" height="9"/>
+        <rect x="9" y="6.5" width="1.8" height="9"/><rect x="11.8" y="6.5" width="0.8" height="9"/>
+        <rect x="13.8" y="6.5" width="1.2" height="9"/><rect x="16.2" y="6.5" width="1.4" height="9"/>
+      </g>
+    </svg>
+    <span>Thermal Label Press</span>
+    <span class="sub">Code 128</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="print">Print</button>
+    <button role="tab" aria-selected="false" data-tab="products" data-admin="1">Products</button>
+    <button role="tab" aria-selected="false" data-tab="customers" data-admin="1">Customers</button>
+    <button role="tab" aria-selected="false" data-tab="log">Print log</button>
+    <button role="tab" aria-selected="false" data-tab="setup" data-admin="1">Label setup</button>
+    <button role="tab" aria-selected="false" data-tab="users" data-admin="1">Users</button>
+  </nav>
+  <div class="who" id="who">
+    <span class="whoName" id="who-name"></span>
+    <span class="chip" id="who-role"></span>
+    <button class="btn ghost tiny" id="b-lock" title="Lock the station">Lock</button>
+    <button class="btn ghost tiny" id="b-signout">Sign out</button>
+  </div>
+</header>
+
+<!-- ============ SIGN IN ============ -->
+<div id="gate" hidden>
+  <div class="gateCard">
+    <div class="gateBrand">
+      <svg width="26" height="26" viewBox="0 0 22 22" aria-hidden="true">
+        <rect x="1" y="3" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <g fill="currentColor">
+          <rect x="4.5" y="6.5" width="1.4" height="9"/><rect x="7" y="6.5" width="0.8" height="9"/>
+          <rect x="9" y="6.5" width="1.8" height="9"/><rect x="11.8" y="6.5" width="0.8" height="9"/>
+          <rect x="13.8" y="6.5" width="1.2" height="9"/><rect x="16.2" y="6.5" width="1.4" height="9"/>
+        </g>
+      </svg>
+      <span>Thermal Label Press</span>
+    </div>
+
+    <form id="setup-panel" hidden autocomplete="off">
+      <h1>Set up the label station</h1>
+      <p class="gateNote">Create the administrator account. Everyone else can be added afterwards on the Users tab.</p>
+      <div class="field"><label for="su-name">Your name</label><input type="text" id="su-name" autocomplete="off" placeholder="Nomer Santos"></div>
+      <div class="field"><label for="su-user">Username</label><input type="text" id="su-user" autocomplete="off" placeholder="nomer"></div>
+      <div class="field"><label for="su-pin">PIN or password</label><input type="password" id="su-pin" autocomplete="new-password"></div>
+      <div class="field"><label for="su-pin2">Repeat it</label><input type="password" id="su-pin2" autocomplete="new-password"></div>
+      <div class="gateMsg" id="su-msg"></div>
+      <button class="btn primary wide" type="submit">Create administrator</button>
+    </form>
+
+    <form id="login-panel" hidden autocomplete="off">
+      <h1 id="login-title">Sign in</h1>
+      <p class="gateNote" id="login-note">The station is locked. Sign in to print.</p>
+      <div class="field"><label for="li-user">Username</label><input type="text" id="li-user" autocomplete="username"></div>
+      <div class="field"><label for="li-pin">PIN or password</label><input type="password" id="li-pin" autocomplete="current-password"></div>
+      <label class="chk"><input type="checkbox" id="li-stay"> Keep me signed in on this computer</label>
+      <div class="gateMsg" id="li-msg"></div>
+      <button class="btn primary wide" type="submit">Sign in</button>
+    </form>
+
+    <p class="gateFoot">Sign-in records who printed what and keeps the setup tabs out of the way during a run. It is a
+      workflow gate, not encryption — anyone with this file and a browser can get past it, so don’t rely on it to
+      protect anything sensitive.</p>
+  </div>
+</div>
+
+<main class="wrap">
+
+<!-- ============ PRINT ============ -->
+<section class="panel on" id="p-print">
+<div class="split">
+
+  <div>
+    <div class="card">
+      <h2>Label content</h2>
+      <div class="body">
+        <div class="grid2">
+          <div class="field span2">
+            <label for="f-cust">Customer</label>
+            <select id="f-cust"></select>
+            <span class="hint">Every product belongs to a customer. Choosing one narrows the product list and is recorded in the print log — customer details never appear on the label.</span>
+          </div>
+          <div class="field span2">
+            <label for="f-pick">Product</label>
+            <select id="f-pick"></select>
+            <span class="hint">Pick a saved product to fill the name, size and barcode. Choose “Custom entry” to type a one-off label.</span>
+          </div>
+          <div class="field span2">
+            <label for="f-name">Product name</label>
+            <input type="text" id="f-name" placeholder="AllJoy Chicken Liver">
+          </div>
+          <div class="field">
+            <label for="f-size">Pack size</label>
+            <input type="text" id="f-size" placeholder="250g">
+          </div>
+          <div class="field">
+            <label for="f-code">Barcode number</label>
+            <input type="text" id="f-code" class="mono" placeholder="39012472" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="f-pd">Production date</label>
+            <input type="date" id="f-pd">
+            <div class="row"><button class="btn tiny" data-pd="today">Today</button></div>
+          </div>
+          <div class="field">
+            <label for="f-ed">Expiry date</label>
+            <input type="date" id="f-ed">
+            <div class="row">
+              <button class="btn tiny" data-shelf="3">+3 mo</button>
+              <button class="btn tiny" data-shelf="6">+6 mo</button>
+              <button class="btn tiny" data-shelf="12">+1 yr</button>
+              <button class="btn tiny" data-shelf="24">+2 yr</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="f-copies">Copies</label>
+            <input type="number" id="f-copies" value="1" min="1" max="500" class="mono">
+          </div>
+          <div class="field">
+            <span class="lbl" data-admin="1">Catalog</span>
+            <button class="btn" id="b-save" data-admin="1">Save to products</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Print queue <span class="count" id="q-count">0 labels</span></h2>
+      <div id="q-list"><div class="empty">Nothing queued. Add labels here to print several products in one run.</div></div>
+      <div class="body row" style="border-top:1px solid var(--line-2)">
+        <button class="btn primary" id="b-printq">Print queue</button>
+        <button class="btn" id="b-addq">Add current label</button>
+        <button class="btn ghost danger" id="b-clearq">Clear</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Printer command · ZPL</h2>
+      <div class="body">
+        <pre class="zpl" id="zpl"></pre>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="b-copyzpl">Copy ZPL</button>
+          <span class="hint">Send straight to a Zebra printer (or a Godex model running ZPL emulation) — no driver, no browser margins.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="previewWrap">
+    <div class="card">
+      <h2>Preview <span class="count" id="pv-scale"></span></h2>
+      <div class="stage" id="stage"><div class="stageInner" id="stageInner"></div></div>
+      <div class="specs" id="specs"></div>
+      <div id="flags"></div>
+      <div class="body row" style="padding-top:4px">
+        <button class="btn primary" id="b-print">Print label</button>
+        <button class="btn" id="b-zoom">Zoom</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<!-- ============ PRODUCTS ============ -->
+<section class="panel" id="p-products">
+  <div class="card">
+    <h2 id="prod-title">Add a product</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="n-name">Product name</label><input type="text" id="n-name" placeholder="AllJoy Beef Tapa"></div>
+        <div class="field"><label for="n-size">Pack size</label><input type="text" id="n-size" placeholder="500g"></div>
+        <div class="field"><label for="n-code">Barcode number</label><input type="text" id="n-code" class="mono" placeholder="39012473"></div>
+        <div class="field" style="grid-column:span 2"><label for="n-cust">Customer</label><select id="n-cust"></select></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-add">Add product</button>
+        <button class="btn ghost" id="b-pcancel" style="display:none">Cancel</button>
+        <span class="hint" id="add-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Saved products <span class="count" id="cat-count"></span></h2>
+    <div id="cat-warn"></div>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>Product</th><th>Size</th><th>Barcode</th><th>Customer</th><th></th></tr></thead>
+        <tbody id="cat-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-export">Export CSV</button>
+      <button class="btn" id="b-import">Import CSV</button>
+      <input type="file" id="f-file" accept=".csv,text/csv" style="display:none">
+      <span class="hint">Columns: name, size, code, customer. Import adds new codes and updates matching ones; either “customer” or “company” works as the column name.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CUSTOMERS ============ -->
+<section class="panel" id="p-customers">
+  <div class="card">
+    <h2 id="cus-title">Add a customer</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="c-name">Customer name</label><input type="text" id="c-name" placeholder="AllJoy Foods"></div>
+        <div class="field"><label for="c-code">Customer code</label><input type="text" id="c-code" class="mono" placeholder="ALLJOY"></div>
+        <div class="field"><label for="c-contact">Contact person</label><input type="text" id="c-contact" placeholder="Ms. Rivera · 0917 000 0000"></div>
+        <div class="field" style="grid-column:span 2"><label for="c-addr">Address</label><input type="text" id="c-addr" placeholder="Quezon City"></div>
+        <div class="field"><label for="c-notes">Notes</label><input type="text" id="c-notes" placeholder="Deliveries Tue &amp; Fri"></div>
+        <div class="field"><label for="c-w">Label width (mm)</label><input type="number" id="c-w" class="mono" step="0.5" min="20" placeholder="house default"></div>
+        <div class="field"><label for="c-h">Label height (mm)</label><input type="number" id="c-h" class="mono" step="0.5" min="15" placeholder="house default"></div>
+        <div class="field" style="display:flex;justify-content:flex-end">
+          <span class="hint">Leave the size blank to follow the house default. Setting it gives this customer its own stock, sized to fit automatically — fine-tune it any time on the Label setup tab.</span>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-cadd">Add customer</button>
+        <button class="btn ghost" id="b-ccancel" style="display:none">Cancel</button>
+        <span class="hint" id="cus-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Customers <span class="count" id="cus-count"></span></h2>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>Customer</th><th>Code</th><th>Label stock</th><th>Contact</th><th>Address</th><th>Notes</th><th>Products</th><th></th></tr></thead>
+        <tbody id="cus-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-cexport">Export CSV</button>
+      <button class="btn" id="b-cimport">Import CSV</button>
+      <input type="file" id="c-file" accept=".csv,text/csv" style="display:none">
+      <span class="hint">Columns: name, code, contact, address, notes.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ USERS ============ -->
+<section class="panel" id="p-users">
+  <div class="card">
+    <h2 id="usr-title">Add a user</h2>
+    <div class="body">
+      <div class="grid3">
+        <div class="field"><label for="u-name">Name</label><input type="text" id="u-name" autocomplete="off" placeholder="Rosa dela Cruz"></div>
+        <div class="field"><label for="u-user">Username</label><input type="text" id="u-user" autocomplete="off" placeholder="rosa"></div>
+        <div class="field"><label for="u-role">Role</label>
+          <select id="u-role">
+            <option value="operator">Operator — print and view the log</option>
+            <option value="admin">Administrator — everything</option>
+          </select>
+        </div>
+        <div class="field"><label for="u-pin">PIN or password</label><input type="password" id="u-pin" autocomplete="new-password"></div>
+        <div class="field"><label for="u-pin2">Repeat it</label><input type="password" id="u-pin2" autocomplete="new-password"></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" id="b-uadd">Add user</button>
+        <button class="btn ghost" id="b-ucancel" style="display:none">Cancel</button>
+        <span class="hint" id="usr-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Users <span class="count" id="usr-count"></span></h2>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Last signed in</th><th></th></tr></thead>
+        <tbody id="usr-body"></tbody>
+      </table>
+    </div>
+    <div class="body" style="border-top:1px solid var(--line-2)">
+      <div class="flag warn"><span class="ic">△</span><span>Sign-in is a workflow gate and an audit trail, not real security.
+        Accounts live in this browser on this computer; PINs are stored as salted hashes, but anyone who can open this
+        file in their own browser can work around the gate entirely. Use it to keep a run tidy and to know who printed
+        what — not to protect anything confidential.</span></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="b-uexport">Export users CSV</button>
+        <span class="hint">Names, usernames and roles only — PINs are never exported.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRINT LOG ============ -->
+<section class="panel" id="p-log">
+  <div class="card">
+    <h2>Print log <span class="count" id="log-count"></span></h2>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>When</th><th>By</th><th>Customer</th><th>Product</th><th>Size</th><th>Barcode</th><th>Dates</th><th>Labels</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-lexport">Export CSV</button>
+      <button class="btn ghost danger" id="b-lclear" data-admin="1">Clear log</button>
+      <span class="hint">Every print run is recorded here — the last 2,000 runs are kept.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SETUP ============ -->
+<section class="panel" id="p-setup">
+  <div class="split">
+    <div>
+      <div class="card">
+        <h2>Label stock</h2>
+        <div id="scope" style="padding:14px 18px 0"></div>
+        <div class="body">
+          <div class="grid3">
+            <div class="field span2" style="grid-column:span 3">
+              <label for="s-preset">Size preset</label>
+              <select id="s-preset">
+                <option value="50x30">50 × 30 mm  (2.0 × 1.2 in)</option>
+                <option value="50x25">50 × 25 mm  (2.0 × 1.0 in)</option>
+                <option value="57x32">57 × 32 mm</option>
+                <option value="60x40">60 × 40 mm</option>
+                <option value="40x30">40 × 30 mm</option>
+                <option value="76x51">76 × 51 mm  (3.0 × 2.0 in)</option>
+                <option value="100x50">100 × 50 mm (4.0 × 2.0 in)</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+            <div class="field"><label for="s-w">Width (mm)</label><input type="number" id="s-w" class="mono" step="0.5" min="20"></div>
+            <div class="field"><label for="s-h">Height (mm)</label><input type="number" id="s-h" class="mono" step="0.5" min="15"></div>
+            <div class="field"><label for="s-pad">Margin (mm)</label><input type="number" id="s-pad" class="mono" step="0.5" min="0"></div>
+            <div class="field"><label for="s-dpi">Printer resolution</label>
+              <select id="s-dpi"><option value="203">203 dpi (8 dots/mm)</option><option value="300">300 dpi (12 dots/mm)</option><option value="600">600 dpi (24 dots/mm)</option></select>
+            </div>
+            <div class="field"><label for="s-dark">Darkness (ZPL)</label><input type="number" id="s-dark" class="mono" min="0" max="30" step="1"></div>
+            <div class="field"><label for="s-speed">Print speed (ips)</label><input type="number" id="s-speed" class="mono" min="2" max="12" step="1"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Barcode measurement</h2>
+        <div class="body">
+          <div class="grid3">
+            <div class="field" style="grid-column:span 3">
+              <label for="s-barmode">Sizing method</label>
+              <select id="s-barmode">
+                <option value="width">Set the barcode size — bars adjust to fit</option>
+                <option value="module">Set the module width — barcode grows with longer numbers</option>
+              </select>
+            </div>
+            <div class="field" id="fld-barw"><label for="s-barw">Barcode width (mm)</label><input type="number" id="s-barw" class="mono" step="0.5" min="10"></div>
+            <div class="field"><label for="s-bar">Barcode height (mm)</label><input type="number" id="s-bar" class="mono" step="0.5" min="3"></div>
+            <div class="field" id="fld-mod"><label for="s-mod">Module width (mm)</label><input type="number" id="s-mod" class="mono" step="0.01" min="0.15"></div>
+            <div class="field" style="grid-column:span 3">
+              <label for="s-suffix">What the scanner types after the number</label>
+              <select id="s-suffix">
+                <option value="lf">Enter — line feed (matches the sample label)</option>
+                <option value="cr">Enter — carriage return</option>
+                <option value="crlf">Enter — carriage return + line feed</option>
+                <option value="tab">Tab</option>
+                <option value="">Nothing — just the number</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <span class="hint" id="bar-readout"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Typography</h2>
+        <div class="body">
+          <div class="grid3">
+            <div class="field"><label for="s-title">Name size (mm)</label><input type="number" id="s-title" class="mono" step="0.1" min="1"></div>
+            <div class="field"><label for="s-date">Date size (mm)</label><input type="number" id="s-date" class="mono" step="0.1" min="1"></div>
+            <div class="field"><label for="s-num">Number size (mm)</label><input type="number" id="s-num" class="mono" step="0.1" min="1"></div>
+            <div class="field"><label for="s-fmt">Date format</label>
+              <select id="s-fmt">
+                <option value="mdy">Aug 20,2026</option>
+                <option value="dmy">20 Aug 2026</option>
+                <option value="iso">2026-08-20</option>
+                <option value="slash">08/20/2026</option>
+              </select>
+            </div>
+            <div class="field"><label for="s-pdl">“Produced” label</label><input type="text" id="s-pdl"></div>
+            <div class="field"><label for="s-edl">“Expires” label</label><input type="text" id="s-edl"></div>
+            <div class="field"><label for="s-shownum">Number under bars</label>
+              <select id="s-shownum"><option value="1">Show</option><option value="0">Hide</option></select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:16px">
+            <button class="btn" id="b-fit">Auto-fit to stock</button>
+            <button class="btn ghost" id="b-reset">Reset to defaults</button>
+            <span class="hint">Auto-fit sizes the text and bars to fill the current label.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="previewWrap">
+      <div class="card">
+        <h2>Live preview</h2>
+        <div class="stage" id="stage2"><div class="stageInner" id="stageInner2"></div></div>
+        <div class="specs" id="specs2"></div>
+        <div id="flags2" style="padding-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Printing notes</h2>
+        <div class="body" style="font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;gap:10px">
+          <p style="margin:0"><b style="color:var(--ink)">Browser printing.</b> In the print dialog choose your Zebra or Godex driver, set paper to the same size as above, scale to 100% (not “fit to page”), and turn margins off. The page size is already embedded in the label.</p>
+          <p style="margin:0"><b style="color:var(--ink)">Direct ZPL.</b> Copying the ZPL and sending it to the printer’s port skips the driver entirely and gives the sharpest bars, because the printer renders them at exact dot boundaries. The layout matches, but the text comes out in the printer’s own built-in font — print through the driver when you want the typewriter face of the sample label.</p>
+          <p style="margin:0"><b style="color:var(--ink)">Scan quality.</b> Keep the module width at or above 0.25 mm and the barcode at least 8 mm tall. The module width is the width of the thinnest bar: widen the barcode to raise it, and remember that a longer barcode number divides the same width into more bars. Anything thinner than one printer dot cannot print cleanly and will fail to scan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Code 128 encoder  (values 0-106: 103=StartA 104=StartB 105=StartC 106=Stop)
+   ============================================================ */
+const C128 = ["212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+"221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+"221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+"212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+"231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+"231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+"314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+"112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+"111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+"214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+"114131","311141","411131","211412","211214","211232","2331112"];
+
+function digitRun(s, i){ let n = 0; while (i + n < s.length && s[i+n] >= "0" && s[i+n] <= "9") n++; return n; }
+
+/* Returns { modules: "1010...", codes: [...] } or throws on unsupported characters. */
+function code128(data){
+  if (!data || !data.length) throw new Error("empty");
+  for (const ch of data){
+    const c = ch.charCodeAt(0);
+    if (c > 126) throw new Error("Character “" + ch + "” cannot be encoded in Code 128 (use plain ASCII).");
+  }
+  const codes = [];
+  let mode, i = 0;
+  const head = digitRun(data, 0);
+  if ((head === data.length && head >= 2 && head % 2 === 0) || head >= 4){ mode = "C"; codes.push(105); }
+  else { mode = "B"; codes.push(104); }
+
+  while (i < data.length){
+    const cc = data.charCodeAt(i);
+    if (cc < 32){                                            // control character — Code A only
+      if (mode !== "A"){ codes.push(101); mode = "A"; }      // Code A
+      codes.push(cc + 64); i += 1;
+      continue;
+    }
+    if (mode === "A"){
+      const run = digitRun(data, i);
+      if (run >= 4 && run % 2 === 0){ codes.push(99); mode = "C"; }
+      else { codes.push(100); mode = "B"; }
+      continue;
+    }
+    if (mode === "C"){
+      const run = digitRun(data, i);
+      if (run >= 2){ codes.push(parseInt(data.substr(i,2),10)); i += 2; }
+      else { codes.push(100); mode = "B"; }                 // Code B
+    } else {
+      const run = digitRun(data, i);
+      const toEnd = (i + run === data.length);
+      if (run >= 6 || (run >= 4 && toEnd)){
+        if (run % 2 === 1){ codes.push(cc - 32); i += 1; }
+        codes.push(99); mode = "C";                          // Code C
+      } else {
+        codes.push(cc - 32); i += 1;
+      }
+    }
+  }
+  let sum = codes[0];
+  for (let k = 1; k < codes.length; k++) sum += codes[k] * k;
+  codes.push(sum % 103);
+  codes.push(106);
+
+  let modules = "";
+  for (const c of codes){
+    const p = C128[c];
+    for (let k = 0; k < p.length; k++) modules += (k % 2 === 0 ? "1" : "0").repeat(+p[k]);
+  }
+  return { modules, codes };
+}
+
+/* Barcode as an SVG string, sized in millimetres. */
+function barcodeSVG(modules, moduleMM, heightMM){
+  const w = modules.length * moduleMM;
+  let rects = "", run = 0;
+  for (let i = 0; i <= modules.length; i++){
+    if (modules[i] === "1"){ run++; continue; }
+    if (run){ rects += '<rect x="' + ((i - run) * moduleMM).toFixed(4) + '" y="0" width="' + (run * moduleMM).toFixed(4) + '" height="' + heightMM + '" />'; run = 0; }
+  }
+  return '<svg width="' + w.toFixed(3) + 'mm" height="' + heightMM + 'mm" viewBox="0 0 ' + w.toFixed(3) + ' ' + heightMM +
+         '" preserveAspectRatio="none" shape-rendering="crispEdges" fill="#000" role="img" aria-label="Barcode">' + rects + '</svg>';
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+const DEFAULTS = {
+  w:50, h:30, pad:1.4, dpi:203, dark:12, speed:4,
+  title:3.3, date:2.7, num:3.0, bar:8, mod:0.38,
+  barmode:"width", barw:30, suffix:"lf", fmtv:1,
+  fmt:"mdy", pdl:"PD:", edl:"ED:", shownum:1
+};
+const SEED_CO = { id:"co-alljoy", name:"AllJoy", code:"ALLJOY", contact:"", address:"", notes:"" };
+const SEED = [{ name:"AllJoy Chicken Liver", size:"250g", code:"39012472", cust:"co-alljoy" }];
+const LOG_MAX = 2000;
+
+const store = {
+  read(k, fb){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch(e){ return fb; } },
+  write(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+
+let house     = Object.assign({}, DEFAULTS, store.read("tlp.cfg", {}));
+let cfg       = Object.assign({}, house);
+const fresh   = store.read("tlp.customers", null) === null;
+let customers = fresh ? [Object.assign({}, SEED_CO)] : store.read("tlp.customers", []);
+let catalog   = (store.read("tlp.catalog", null) || (fresh ? SEED : []))
+                  .map(p => Object.assign({ cust:"" }, p));
+let logbook   = store.read("tlp.log", []);
+let queue     = store.read("tlp.queue", []);
+let editingCustomer = null;
+let zoom      = 2;
+
+/* Stock and layout belong to the customer; the printer settings belong to the machine. */
+const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix"];
+const PRINTER_KEYS = ["dpi","dark","speed"];
+
+/* The label profile in force for a customer: its own stock over the house default,
+   with this machine's printer settings layered on top. */
+function profileFor(custId){
+  const c = custById(custId);
+  const prof = Object.assign({}, house);
+  if (c && c.stock) STOCK_KEYS.forEach(k => { if (c.stock[k] !== undefined) prof[k] = c.stock[k]; });
+  return prof;
+}
+function stockLabel(c){
+  return c && c.stock ? c.stock.w + " × " + c.stock.h + " mm" : "";
+}
+/* Which customer's stock the Label setup tab is editing (blank = the house default). */
+function editingScope(){ return $("#f-cust") ? $("#f-cust").value : ""; }
+
+function uid(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function custById(id){ return customers.find(c => c.id === id) || null; }
+function custName(id){
+  const c = custById(id);
+  return c ? (c.name + (c.code ? " (" + c.code + ")" : "")) : "";
+}
+function needCompany(msgEl){
+  if (customers.length) return false;
+  const m = $(msgEl);
+  if (m) m.textContent = "Add a customer first — every product belongs to one.";
+  return true;
+}
+function custOptions(sel, blankLabel){
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">' + blankLabel + "</option>" +
+    customers.map(c => '<option value="' + c.id + '">' + esc(custName(c.id)) + "</option>").join("");
+  sel.value = customers.some(c => c.id === cur) ? cur : "";
+}
+
+const $  = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(iso, c){
+  c = c || cfg;
+  if (!iso) return "";
+  const p = iso.split("-"); if (p.length !== 3) return iso;
+  const y = p[0], m = +p[1], d = p[2];
+  switch (c.fmt){
+    case "dmy":   return d + " " + MON[m-1] + " " + y;
+    case "iso":   return y + "-" + p[1] + "-" + d;
+    case "slash": return p[1] + "/" + d + "/" + y;
+    default:      return MON[m-1] + " " + d + "," + y;
+  }
+}
+function addMonths(iso, n){
+  if (!iso) return "";
+  const p = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(p[0], p[1]-1+n, p[2]));
+  return dt.toISOString().slice(0,10);
+}
+function todayISO(){
+  const d = new Date(); const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off*60000).toISOString().slice(0,10);
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ============================================================
+   Sign-in — a workflow gate and an audit trail, not security.
+   PINs are kept as PBKDF2-SHA256 hashes with a per-user salt so they
+   are not sitting in the clear, but the gate itself is bypassable.
+   ============================================================ */
+const IDLE_MIN = 30;                       /* lock the station after this long untouched */
+let users = store.read("tlp.users", null);
+let me = null;
+let editingUser = null;
+let idleTimer = null;
+
+const hex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+function randomSalt(){
+  const a = new Uint8Array(16);
+  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_,i) => a[i] = i * 7 + 11);
+  return hex(a.buffer);
+}
+async function hashPin(pin, salt){
+  const enc = new TextEncoder();
+  if (window.crypto && crypto.subtle && crypto.subtle.importKey){
+    try {
+      const key = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits(
+        { name:"PBKDF2", salt: enc.encode(salt), iterations: 120000, hash:"SHA-256" }, key, 256);
+      return "pbkdf2:" + hex(bits);
+    } catch(e){ /* fall through */ }
+  }
+  let h = 0x811c9dc5;                      /* last resort where WebCrypto is unavailable */
+  for (const ch of (salt + "|" + pin + "|" + salt)){
+    h ^= ch.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return "weak:" + h.toString(16);
+}
+function isAdmin(){ return !!me && me.role === "admin"; }
+function saveUsers(){ store.write("tlp.users", users); }
+
+function showGate(which){
+  document.body.classList.add("locked");
+  $("#gate").hidden = false;
+  $("#setup-panel").hidden = which !== "setup";
+  $("#login-panel").hidden = which !== "login";
+  const f = which === "setup" ? "#su-name" : "#li-user";
+  setTimeout(() => { const el = $(f); if (el) el.focus(); }, 60);
+}
+function hideGate(){
+  document.body.classList.remove("locked");
+  $("#gate").hidden = true;
+  $("#li-pin").value = "";
+  $("#li-msg").textContent = "";
+}
+
+function startSession(u, remember){
+  me = u;
+  u.seen = stamp(new Date());
+  saveUsers();
+  const token = JSON.stringify({ id: u.id, at: Date.now() });
+  try {
+    sessionStorage.setItem("tlp.session", token);
+    if (remember) localStorage.setItem("tlp.session", token); else localStorage.removeItem("tlp.session");
+  } catch(e){}
+  hideGate();
+  applyRole();
+  renderUsers();
+  touchIdle();
+}
+function endSession(hard){
+  me = null;
+  try { sessionStorage.removeItem("tlp.session"); if (hard) localStorage.removeItem("tlp.session"); } catch(e){}
+  clearTimeout(idleTimer);
+  showGate("login");
+  $("#login-title").textContent = hard ? "Sign in" : "Station locked";
+  $("#login-note").textContent = hard
+    ? "Sign in to print."
+    : "Signed out after " + IDLE_MIN + " minutes untouched. Sign in to carry on.";
+}
+function touchIdle(){
+  if (!me) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (me) endSession(false); }, IDLE_MIN * 60000);
+}
+["click","keydown","input"].forEach(ev => document.addEventListener(ev, touchIdle, true));
+
+/* Operators print; administrators do everything else. */
+function applyRole(){
+  const admin = isAdmin();
+  $("#who").style.display = me ? "" : "none";
+  if (me){
+    $("#who-name").textContent = me.name;
+    $("#who-role").textContent = admin ? "Admin" : "Operator";
+  }
+  $$("[data-admin]").forEach(el => { el.style.display = admin ? "" : "none"; });
+  const openTab = $$(".tabs button").find(b => b.getAttribute("aria-selected") === "true");
+  if (!admin && (!openTab || openTab.dataset.admin)) selectTab("print");
+}
+function selectTab(name){
+  $$(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === name)));
+  $$(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + name));
+  renderPreview();
+}
+
+/* ---- first run / sign in ---- */
+$("#setup-panel").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#su-name").value.trim(), user = $("#su-user").value.trim().toLowerCase();
+  const pin = $("#su-pin").value, pin2 = $("#su-pin2").value;
+  const msg = $("#su-msg");
+  if (!name || !user) return void (msg.textContent = "A name and a username are both needed.");
+  if (pin.length < 4)  return void (msg.textContent = "Use at least 4 characters for the PIN.");
+  if (pin !== pin2)    return void (msg.textContent = "The two PINs don’t match.");
+  const salt = randomSalt();
+  users = [{ id: uid(), name, user, role: "admin", salt, hash: await hashPin(pin, salt), seen: "" }];
+  saveUsers();
+  $("#su-pin").value = $("#su-pin2").value = "";
+  startSession(users[0], true);
+  toast("Welcome, " + name);
+});
+
+$("#login-panel").addEventListener("submit", async e => {
+  e.preventDefault();
+  const user = $("#li-user").value.trim().toLowerCase(), pin = $("#li-pin").value;
+  const msg = $("#li-msg");
+  const u = (users || []).find(x => x.user === user);
+  const hash = u ? await hashPin(pin, u.salt) : null;
+  if (!u || hash !== u.hash){
+    msg.textContent = "That username and PIN don’t match.";
+    $("#li-pin").value = "";
+    return;
+  }
+  startSession(u, $("#li-stay").checked);
+  toast("Signed in as " + u.name);
+});
+
+$("#b-signout").addEventListener("click", () => endSession(true));
+$("#b-lock").addEventListener("click", () => endSession(false));
+
+/* ---- user list ---- */
+function renderUsers(){
+  if (!$("#usr-body")) return;
+  const list = users || [];
+  $("#usr-count").textContent = list.length + (list.length === 1 ? " user" : " users");
+  $("#usr-body").innerHTML = list.length ? list.map((u,i) =>
+    "<tr><td>" + esc(u.name) + (me && u.id === me.id ? ' <span class="cd">· you</span>' : "") +
+    '</td><td class="mono">' + esc(u.user) + "</td><td>" +
+    '<span class="chip">' + (u.role === "admin" ? "Admin" : "Operator") + "</span></td>" +
+    '<td class="mono">' + esc(u.seen || "—") + '</td><td class="acts">' +
+    '<button class="btn tiny" data-uedit="' + i + '">Edit</button> ' +
+    '<button class="btn tiny danger" data-udel="' + i + '">Delete</button></td></tr>').join("")
+    : '<tr><td colspan="5" class="empty">No users yet.</td></tr>';
+}
+function clearUserForm(){
+  ["u-name","u-user","u-pin","u-pin2"].forEach(id => $("#" + id).value = "");
+  $("#u-role").value = "operator";
+  editingUser = null;
+  $("#usr-title").textContent = "Add a user";
+  $("#b-uadd").textContent = "Add user";
+  $("#b-ucancel").style.display = "none";
+  $("#usr-msg").textContent = "";
+}
+$("#b-uadd").addEventListener("click", async () => {
+  if (!isAdmin()) return;
+  const name = $("#u-name").value.trim(), user = $("#u-user").value.trim().toLowerCase();
+  const role = $("#u-role").value, pin = $("#u-pin").value, pin2 = $("#u-pin2").value;
+  const msg = $("#usr-msg");
+  if (!name || !user) return void (msg.textContent = "A name and a username are both needed.");
+  if (users.some(u => u.user === user && u.id !== editingUser))
+    return void (msg.textContent = "That username is taken.");
+  const editing = editingUser ? users.find(u => u.id === editingUser) : null;
+  if (!editing && pin.length < 4) return void (msg.textContent = "Use at least 4 characters for the PIN.");
+  if (pin && pin.length < 4)      return void (msg.textContent = "Use at least 4 characters for the PIN.");
+  if (pin !== pin2)               return void (msg.textContent = "The two PINs don’t match.");
+  if (editing && editing.role === "admin" && role !== "admin" &&
+      users.filter(u => u.role === "admin").length === 1)
+    return void (msg.textContent = "Keep at least one administrator.");
+
+  if (editing){
+    editing.name = name; editing.user = user; editing.role = role;
+    if (pin){ editing.salt = randomSalt(); editing.hash = await hashPin(pin, editing.salt); }
+    toast("Updated " + name);
+  } else {
+    const salt = randomSalt();
+    users.push({ id: uid(), name, user, role, salt, hash: await hashPin(pin, salt), seen: "" });
+    toast("Added " + name);
+  }
+  saveUsers(); clearUserForm(); renderUsers(); applyRole();
+});
+$("#b-ucancel").addEventListener("click", clearUserForm);
+
+$("#usr-body").addEventListener("click", e => {
+  if (!isAdmin()) return;
+  const ed = e.target.closest("[data-uedit]"), del = e.target.closest("[data-udel]");
+  if (ed){
+    const u = users[+ed.dataset.uedit];
+    editingUser = u.id;
+    $("#u-name").value = u.name; $("#u-user").value = u.user; $("#u-role").value = u.role;
+    $("#u-pin").value = $("#u-pin2").value = "";
+    $("#usr-title").textContent = "Edit user";
+    $("#b-uadd").textContent = "Save changes";
+    $("#b-ucancel").style.display = "";
+    $("#usr-msg").textContent = "Leave the PIN blank to keep the current one.";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  if (del){
+    const u = users[+del.dataset.udel];
+    if (u.role === "admin" && users.filter(x => x.role === "admin").length === 1)
+      return void ($("#usr-msg").textContent = "Keep at least one administrator.");
+    if (me && u.id === me.id)
+      return void ($("#usr-msg").textContent = "You can’t delete the account you’re signed in with.");
+    users.splice(+del.dataset.udel, 1);
+    if (editingUser === u.id) clearUserForm();
+    saveUsers(); renderUsers(); toast("Removed " + u.name);
+  }
+});
+$("#b-uexport").addEventListener("click", () =>
+  download("users.csv", csvRows(["name","username","role","last_signed_in"],
+    (users || []).map(u => [u.name, u.user, u.role, u.seen || ""])), "text/csv"));
+
+/* ============================================================
+   Label rendering
+   ============================================================ */
+function currentLabel(){
+  return {
+    name:   $("#f-name").value.trim(),
+    size:   $("#f-size").value.trim(),
+    pd:     $("#f-pd").value,
+    ed:     $("#f-ed").value,
+    code:   $("#f-code").value.trim(),
+    copies: Math.max(1, Math.min(500, parseInt($("#f-copies").value, 10) || 1)),
+    cust:   $("#f-cust").value          /* recorded with the run — never rendered on the label */
+  };
+}
+
+/* ---- the printout's proportions, measured off the reference label ----
+   text lines share one size and one pitch; the barcode is 3.94 text-heights tall
+   and 0.65 of the label wide; the number sits just under the bars, slightly larger. */
+const LINE     = 1.115;   // line pitch, × text size
+const GAP_BARS = 0.17;    // space above the bars, × text size
+const GAP_NUM  = 0.10;    // space above the number, × text size
+const R_BAR    = 3.94;    // bar height,   × text size
+const R_NUM    = 1.08;    // number size,  × text size
+const R_BARW   = 0.649;   // barcode width, × label width
+/* What the scanner "types" after the number. The reference printout carries a
+   line feed, so a scan lands the code and presses Enter. */
+const SUFFIX = { "":"", lf:"\n", cr:"\r", crlf:"\r\n", tab:"\t" };
+function payloadOf(code, c){ return code + (SUFFIX[(c || cfg).suffix] || ""); }
+const R_FILL   = 0.90;    // how much of the label height the printed block fills
+
+/* Builds one .label element. Returns {el, issues:[]} */
+function buildLabel(data, c){
+  c = c || cfg;
+  const issues = [];
+  const el = document.createElement("div");
+  el.className = "label";
+  el.style.width  = c.w + "mm";
+  el.style.height = c.h + "mm";
+  el.style.padding = c.pad + "mm";
+
+  /* The printout's format: product name, pack size, PD and ED — one line each,
+     one type size, one line pitch, all in the typewriter face. */
+  if (data.name){
+    const t = document.createElement("div");
+    t.className = "ln";
+    t.style.fontSize = c.title + "mm";
+    t.style.lineHeight = LINE;
+    t.textContent = data.name;
+    el.appendChild(t);
+  }
+  if (data.size){
+    const t = document.createElement("div");
+    t.className = "ln";
+    t.style.fontSize = c.title + "mm";
+    t.style.lineHeight = LINE;
+    t.textContent = data.size;
+    el.appendChild(t);
+  }
+
+  if (data.pd || data.ed){
+    const d = document.createElement("div");
+    d.className = "dates";
+    d.style.fontSize = c.date + "mm";
+    d.style.lineHeight = LINE;
+    if (data.pd){ const r = document.createElement("div"); r.textContent = c.pdl + " " + fmtDate(data.pd, c); d.appendChild(r); }
+    if (data.ed){ const r = document.createElement("div"); r.textContent = c.edl + " " + fmtDate(data.ed, c); d.appendChild(r); }
+    el.appendChild(d);
+  }
+
+  if (data.code){
+    let enc = null;
+    try { enc = code128(payloadOf(data.code, c)); } catch(err){ issues.push(["bad", err.message]); }
+    if (enc){
+      const usable = c.w - c.pad * 2;
+      let mod;
+      if (c.barmode === "width"){
+        let target = c.barw;
+        if (target > usable){
+          target = usable;
+          issues.push(["warn", "A " + c.barw + " mm barcode does not fit inside a " + c.w + " mm label — trimmed to " + usable.toFixed(1) + " mm. Widen the label or reduce the margin."]);
+        }
+        mod = target / enc.modules.length;
+      } else {
+        mod = c.mod;
+        if (enc.modules.length * mod > usable){
+          mod = usable / enc.modules.length;
+          issues.push(["warn", "Barcode is wider than the label — bars narrowed to " + mod.toFixed(3) + " mm to fit."]);
+        }
+      }
+      const dotMM = 25.4 / c.dpi;
+      if (mod < dotMM){
+        issues.push(["bad", "Module width " + mod.toFixed(3) + " mm is thinner than one printer dot (" + dotMM.toFixed(3) + " mm). Bars will print unevenly and may not scan."]);
+      } else if (mod < 0.25){
+        issues.push(["warn", "Module width " + mod.toFixed(3) + " mm is below the 0.25 mm rule of thumb — widen the barcode or shorten the number. Test a scan before a long run."]);
+      }
+      if (c.bar < 8) issues.push(["warn", "Barcode height " + c.bar + " mm is short; 8 mm or more scans more reliably."]);
+
+      const box = document.createElement("div");
+      box.style.marginTop = (c.date * GAP_BARS) + "mm";
+      box.innerHTML = barcodeSVG(enc.modules, mod, c.bar);
+      el.appendChild(box);
+      el._enc = enc; el._mod = mod;
+
+      if (+c.shownum){
+        const n = document.createElement("div");
+        n.className = "num";
+        n.style.fontSize = c.num + "mm";
+        n.style.marginTop = (c.date * GAP_NUM) + "mm";
+        n.textContent = data.code;
+        el.appendChild(n);
+      }
+    }
+  }
+  return { el, issues };
+}
+
+/* ============================================================
+   ZPL
+   ============================================================ */
+function mm2dots(mm, c){ return Math.round(mm * (c || cfg).dpi / 25.4); }
+
+function buildZPL(data, copies, c){
+  c = c || cfg;
+  const W = mm2dots(c.w, c), H = mm2dots(c.h, c), PAD = mm2dots(c.pad, c);
+  const L = [];
+  L.push("^XA");
+  L.push("^CI28");                       // UTF-8
+  L.push("^PW" + W);
+  L.push("^LL" + H);
+  L.push("^LH0,0");
+  L.push("^MD" + c.dark);
+  L.push("^PR" + c.speed);
+
+  let y = PAD;
+  const fhT = mm2dots(c.title, c), pitch = Math.round(fhT * LINE);
+  [data.name, data.size].filter(Boolean).forEach(line => {
+    const lines = Math.max(1, Math.ceil(line.length * c.title * 0.6 / (c.w - c.pad * 2)));
+    L.push("^FO" + PAD + "," + y + "^A0N," + fhT + "," + Math.round(fhT*0.6) +
+           "^FB" + (W - PAD*2) + "," + lines + ",0,C,0^FD" + line + "^FS");
+    y += pitch * lines;
+  });
+  if (data.pd || data.ed){
+    const fh = mm2dots(c.date, c);
+    [data.pd && (c.pdl + " " + fmtDate(data.pd, c)), data.ed && (c.edl + " " + fmtDate(data.ed, c))]
+      .filter(Boolean).forEach(line => {
+        L.push("^FO" + PAD + "," + y + "^A0N," + fh + "," + Math.round(fh*0.6) +
+               "^FB" + (W - PAD*2) + ",1,0,C,0^FD" + line + "^FS");
+        y += Math.round(fh * LINE);
+      });
+  }
+  if (data.code){
+    let enc = null;
+    try { enc = code128(payloadOf(data.code, c)); } catch(e){ enc = null; }
+    if (enc){
+      const usable = c.w - c.pad * 2;
+      const mod = (c.barmode === "width")
+        ? Math.min(c.barw, usable) / enc.modules.length
+        : Math.min(c.mod, usable / enc.modules.length);
+      const modDots = Math.max(1, Math.round(mm2dots(mod, c)));
+      const bw = enc.modules.length * modDots;
+      const x  = Math.max(0, Math.round((W - bw) / 2));
+      y += mm2dots(c.date * GAP_BARS, c);
+      L.push("^BY" + modDots + ",3.0," + mm2dots(c.bar, c));
+      const zdata = data.code + (SUFFIX[c.suffix] || "").replace(/[\s\S]/g, ch => "_" + ch.charCodeAt(0).toString(16).padStart(2,"0"));
+      L.push("^FO" + x + "," + y + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N^FH_^FD" + zdata + "^FS");
+    }
+  }
+  L.push("^PQ" + (copies || 1) + ",0,0,N");
+  L.push("^XZ");
+  return L.join("\n");
+}
+
+/* ============================================================
+   Preview
+   ============================================================ */
+/* True height of the stacked content, measured off-screen at 1:1 (mm). */
+function measureLabelMM(data, c){
+  c = c || cfg;
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none";
+  const el = buildLabel(data, c).el;
+  probe.appendChild(el);
+  document.body.appendChild(probe);
+  const kids = el.children;
+  let mm = 0;
+  if (kids.length){
+    const top = kids[0].getBoundingClientRect().top;
+    const bot = kids[kids.length - 1].getBoundingClientRect().bottom;
+    mm = (bot - top) / (96 / 25.4) + c.pad * 2;
+  }
+  probe.remove();
+  return mm;
+}
+
+function fitZoom(sfx){
+  const stage = $("#stage" + (sfx || ""));
+  const w = stage ? stage.clientWidth : 0;
+  if (!w) return 4;                       // hidden panel: don't constrain
+  const mmpx = 96 / 25.4;
+  return Math.max(1, Math.min(4, (w - 44) / (cfg.w * mmpx)));
+}
+
+function renderPreview(){
+  const data = currentLabel();
+  const { el, issues } = buildLabel(data);
+
+  const mmpx = 96 / 25.4;
+  const contentMM = measureLabelMM(data);
+  let zApplied = zoom;
+  ["", "2"].forEach(sfx => {
+    const host = $("#stageInner" + sfx);
+    if (!host) return;
+    host.innerHTML = "";
+    const node = sfx ? buildLabel(data).el : el;
+    host.appendChild(node);
+    const z = Math.min(zoom, fitZoom(sfx));
+    if (!sfx) zApplied = z;
+    node.style.transform = "scale(" + z + ")";
+    host.style.height = (cfg.h * mmpx * z) + "px";
+    host.style.width  = (cfg.w * mmpx * z) + "px";
+  });
+
+  const mod = el._mod || cfg.mod;
+  const bw  = el._enc ? el._enc.modules.length * mod : 0;
+  const spec =
+    '<span>label <b>' + cfg.w + " × " + cfg.h + '</b> mm</span>' +
+    (bw ? '<span>barcode <b>' + bw.toFixed(1) + " × " + Number(cfg.bar).toFixed(1) + '</b> mm</span>' : "") +
+    '<span>module <b>' + mod.toFixed(3) + '</b> mm</span>' +
+    '<span><b>' + cfg.dpi + '</b> dpi</span>' +
+    (el._enc ? '<span><b>' + el._enc.modules.length + '</b> modules</span>' : "");
+  $("#specs").innerHTML = spec;
+  if ($("#specs2")) $("#specs2").innerHTML = spec;
+
+  if (cfg.barmode === "width" && el._enc) $("#s-mod").value = mod.toFixed(3);
+
+  const ro = $("#bar-readout");
+  if (ro){
+    const dots = Math.max(1, Math.round(mod * cfg.dpi / 25.4));
+    const printed = el._enc ? (el._enc.modules.length * dots * 25.4 / cfg.dpi) : 0;
+    ro.innerHTML = el._enc
+      ? "This number needs <b>" + el._enc.modules.length + "</b> modules, so each bar unit is <b>" + mod.toFixed(3) +
+        " mm</b> (" + dots + " dot" + (dots === 1 ? "" : "s") + " at " + cfg.dpi + " dpi). Sent as ZPL the printer snaps that to <b>" +
+        printed.toFixed(1) + " mm</b> wide. A longer barcode number needs more modules — in this mode the barcode keeps its width and the bars get thinner."
+      : "Enter a barcode number on the Print tab to see the measurement.";
+  }
+  $("#pv-scale").textContent = "×" + zApplied.toFixed(1) + " on screen";
+
+  if (contentMM > cfg.h + 0.15){
+    issues.push(["bad", "The content is about " + contentMM.toFixed(1) + " mm tall but the label is only " + cfg.h +
+      " mm — the top and bottom are being cut off. Lower the barcode height or the text sizes, or use taller stock."]);
+  }
+
+  const seen = new Set();
+  const flagHTML = issues.filter(i => !seen.has(i[1]) && seen.add(i[1]))
+    .map(i => '<div class="flag ' + i[0] + '"><span class="ic">' + (i[0] === "bad" ? "!" : "△") + '</span><span>' + esc(i[1]) + "</span></div>").join("")
+    || (data.code ? '<div class="flag ok"><span class="ic">✓</span><span>Code 128 encoded and within tolerance for this stock.</span></div>' : "");
+  $("#flags").innerHTML = flagHTML;
+  if ($("#flags2")) $("#flags2").innerHTML = flagHTML;
+
+  $("#zpl").textContent = buildZPL(data, data.copies);
+  saveDraft();
+}
+
+function saveDraft(){
+  store.write("tlp.draft", currentLabel());
+}
+
+/* ============================================================
+   Catalog
+   ============================================================ */
+function renderCatalog(){
+  const who  = $("#f-cust").value;
+  const pick = $("#f-pick");
+  const cur  = pick.value;
+  const visible = catalog.map((p,i) => [p,i]).filter(([p]) => !who || !p.cust || p.cust === who);
+
+  pick.innerHTML = '<option value="">Custom entry</option>' +
+    visible.map(([p,i]) => '<option value="' + i + '">' + esc(p.name + (p.size ? " · " + p.size : "")) + "</option>").join("");
+  pick.value = visible.some(([,i]) => String(i) === cur) ? cur : "";
+
+  $("#cat-count").textContent = catalog.length + (catalog.length === 1 ? " product" : " products");
+  $("#cat-body").innerHTML = catalog.length ? catalog.map((p,i) =>
+    "<tr><td>" + esc(p.name) + "</td><td>" + esc(p.size || "—") + '</td><td class="mono">' + esc(p.code) +
+    "</td><td>" + companyCell(p, i) +
+    '</td><td class="acts"><button class="btn tiny" data-use="' + i + '">Use</button> ' +
+    '<button class="btn tiny" data-pedit="' + i + '">Edit</button> ' +
+    '<button class="btn tiny danger" data-del="' + i + '">Delete</button></td></tr>').join("")
+    : '<tr><td colspan="5" class="empty">No products saved yet.</td></tr>';
+
+  const orphans = catalog.filter(p => !p.cust).length;
+  $("#cat-warn").innerHTML = orphans
+    ? '<div class="flag warn" style="margin:14px 18px 0"><span class="ic">△</span><span>' + orphans +
+      (orphans === 1 ? " product has" : " products have") +
+      " no customer yet. Pick one in the Customer column — every product belongs to a customer.</span></div>"
+    : "";
+  store.write("tlp.catalog", catalog);
+}
+
+/* The add form doubles as the edit form; a product is tracked by the barcode it had when editing began. */
+let editingProduct = null;
+function clearProductForm(){
+  ["n-name","n-size","n-code"].forEach(id => $("#" + id).value = "");
+  $("#n-cust").value = "";
+  editingProduct = null;
+  $("#prod-title").textContent = "Add a product";
+  $("#b-add").textContent = "Add product";
+  $("#b-pcancel").style.display = "none";
+  $("#add-msg").textContent = "";
+}
+function editProduct(i){
+  const p = catalog[i]; if (!p) return;
+  editingProduct = p.code;
+  $("#n-name").value = p.name; $("#n-size").value = p.size || "";
+  $("#n-code").value = p.code; $("#n-cust").value = p.cust || "";
+  $("#prod-title").textContent = "Edit product";
+  $("#b-add").textContent = "Save changes";
+  $("#b-pcancel").style.display = "";
+  $("#add-msg").textContent = "";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  $("#n-name").focus();
+}
+
+/* The customer cell is editable in place, so a product is never stuck without one. */
+function companyCell(p, i){
+  const unset = !p.cust;
+  return '<select class="rowco' + (unset ? " unset" : "") + '" data-row="' + i + '" aria-label="Customer for ' + esc(p.name) + '">' +
+    '<option value=""' + (unset ? " selected" : "") + ">Set customer…</option>" +
+    customers.map(c => '<option value="' + c.id + '"' + (c.id === p.cust ? " selected" : "") + ">" +
+      esc(custName(c.id)) + "</option>").join("") + "</select>";
+}
+
+/* ============================================================
+   Customers — every product belongs to one; held with the job and the log, never on the label
+   ============================================================ */
+function renderCustomers(){
+  custOptions($("#f-cust"), "All customers");
+  custOptions($("#n-cust"), "Select a customer…");
+  $("#cus-count").textContent = customers.length + (customers.length === 1 ? " customer" : " customers");
+  $("#cus-body").innerHTML = customers.length ? customers.map((c,i) => {
+    const n = catalog.filter(p => p.cust === c.id).length;
+    const stock = c.stock
+      ? '<span class="mono">' + c.stock.w + " × " + c.stock.h + " mm</span>"
+      : '<span class="mono" style="color:var(--ink-3)">' + house.w + " × " + house.h + " mm · house</span>";
+    return "<tr><td>" + esc(c.name) + '</td><td class="mono">' + esc(c.code || "—") + "</td><td>" + stock + "</td><td>" +
+      esc(c.contact || "—") + "</td><td>" + esc(c.address || "—") + "</td><td>" + esc(c.notes || "—") +
+      '</td><td class="mono">' + n + '</td><td class="acts">' +
+      '<button class="btn tiny" data-cedit="' + i + '">Edit</button> ' +
+      '<button class="btn tiny danger" data-cdel="' + i + '">Delete</button></td></tr>';
+  }).join("") : '<tr><td colspan="8" class="empty">No customers yet. Add one before saving products.</td></tr>';
+  store.write("tlp.customers", customers);
+  renderCatalog();
+}
+
+function customerForm(){
+  return {
+    name:    $("#c-name").value.trim(),
+    code:    $("#c-code").value.trim(),
+    contact: $("#c-contact").value.trim(),
+    address: $("#c-addr").value.trim(),
+    notes:   $("#c-notes").value.trim()
+  };
+}
+/* Width and height typed on the customer form: build a full stock profile, sized to fit. */
+function stockFromForm(existing){
+  const w = parseFloat($("#c-w").value), h = parseFloat($("#c-h").value);
+  if (!w || !h) return null;
+  if (existing && existing.w === w && existing.h === h) return existing;   // untouched — keep tuning
+  const p = fitProfile(Object.assign({}, house, existing || {}, { w, h }), currentLabel());
+  const stock = {};
+  STOCK_KEYS.forEach(k => stock[k] = p[k]);
+  return stock;
+}
+function clearCustomerForm(){
+  ["c-name","c-code","c-contact","c-addr","c-notes","c-w","c-h"].forEach(id => $("#" + id).value = "");
+  editingCustomer = null;
+  $("#cus-title").textContent = "Add a customer";
+  $("#b-cadd").textContent = "Add customer";
+  $("#b-ccancel").style.display = "none";
+  $("#cus-msg").textContent = "";
+}
+
+/* ============================================================
+   Print log
+   ============================================================ */
+function stamp(d){
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function logPrint(list){
+  const when = stamp(new Date());
+  const who  = $("#f-cust").value;
+  list.forEach(d => logbook.unshift({
+    when, by: me ? me.name : "—", cust: custName(d.cust || who) || "—",
+    name: d.name, size: d.size, code: d.code, pd: d.pd, ed: d.ed, copies: d.copies
+  }));
+  if (logbook.length > LOG_MAX) logbook.length = LOG_MAX;
+  renderLog();
+}
+function renderLog(){
+  const total = logbook.reduce((a,r) => a + (r.copies || 0), 0);
+  $("#log-count").textContent = logbook.length + (logbook.length === 1 ? " run · " : " runs · ") + total + " labels";
+  $("#log-body").innerHTML = logbook.length ? logbook.slice(0, 400).map(r =>
+    '<tr><td class="mono">' + esc(r.when) + "</td><td>" + esc(r.by || "—") + "</td><td>" + esc(r.cust) + "</td><td>" + esc(r.name || "—") +
+    "</td><td>" + esc(r.size || "—") + '</td><td class="mono">' + esc(r.code || "—") + '</td><td class="mono">' +
+    esc([r.pd, r.ed].filter(Boolean).map(fmtDate).join(" → ") || "—") + '</td><td class="mono">' + r.copies + "</td></tr>").join("")
+    : '<tr><td colspan="8" class="empty">Nothing printed yet.</td></tr>';
+  store.write("tlp.log", logbook);
+}
+
+function loadProduct(i){
+  const p = catalog[i]; if (!p) return;
+  if (p.cust && $("#f-cust").value !== p.cust){ $("#f-cust").value = p.cust; renderCatalog(); adoptProfile(); }
+  $("#f-pick").value = String(i);
+  $("#f-name").value = p.name;
+  $("#f-size").value = p.size || "";
+  $("#f-code").value = p.code;
+  renderPreview();
+}
+
+/* ============================================================
+   Queue
+   ============================================================ */
+function renderQueue(){
+  const n = queue.reduce((a,q) => a + q.copies, 0);
+  $("#q-count").textContent = n + (n === 1 ? " label" : " labels");
+  $("#q-list").innerHTML = queue.length ? queue.map((q,i) =>
+    '<div class="qrow"><span class="qty">×' + q.copies + '</span>' +
+    '<span class="nm">' + esc([q.name, q.size].filter(Boolean).join(" ")) +
+      (q.cust ? ' <span class="cd">· ' + esc(custName(q.cust)) + "</span>" : "") + '</span>' +
+    '<span class="cd">' + esc(q.code) + '</span>' +
+    '<button class="btn ghost tiny danger" data-qdel="' + i + '">Remove</button></div>').join("")
+    : '<div class="empty">Nothing queued. Add labels here to print several products in one run.</div>';
+  store.write("tlp.queue", queue);
+}
+
+/* ============================================================
+   Printing
+   ============================================================ */
+/* A run can mix customers, so each label carries its own stock size onto its own page. */
+function printLabels(list){
+  const sheet = $("#sheet");
+  sheet.innerHTML = "";
+  const sizes = [];        /* distinct "W×H" in this run, in order */
+  let total = 0;
+  list.forEach(d => {
+    const prof = profileFor(d.cust);
+    const key = prof.w + "x" + prof.h;
+    let idx = sizes.indexOf(key);
+    if (idx < 0){ sizes.push(key); idx = sizes.length - 1; }
+    for (let i = 0; i < d.copies; i++){
+      if (total++ > 500) return;
+      const el = buildLabel(d, prof).el;
+      el.classList.add("pg" + idx);
+      sheet.appendChild(el);
+    }
+  });
+  if (!total){ toast("Nothing to print"); return; }
+  logPrint(list);
+  let ps = document.getElementById("pageStyle");
+  if (!ps){ ps = document.createElement("style"); ps.id = "pageStyle"; document.head.appendChild(ps); }
+  ps.textContent = sizes.map((key, i) => {
+    const wh = key.split("x");
+    return "@page pg" + i + "{size:" + wh[0] + "mm " + wh[1] + "mm;margin:0}" +
+           "#sheet .label.pg" + i + "{page:pg" + i + "}";
+  }).join("\n") + "\n@page{size:" + sizes[0].replace("x", "mm ") + "mm;margin:0}";
+  window.print();
+}
+
+/* ============================================================
+   Settings
+   ============================================================ */
+const CFG_FIELDS = {
+  "s-w":"w","s-h":"h","s-pad":"pad","s-dpi":"dpi","s-dark":"dark","s-speed":"speed",
+  "s-title":"title","s-date":"date","s-num":"num","s-bar":"bar","s-mod":"mod",
+  "s-barmode":"barmode","s-barw":"barw","s-suffix":"suffix",
+  "s-fmt":"fmt","s-pdl":"pdl","s-edl":"edl","s-shownum":"shownum"
+};
+function cfgToForm(){
+  for (const id in CFG_FIELDS) $("#" + id).value = cfg[CFG_FIELDS[id]];
+  const key = cfg.w + "x" + cfg.h;
+  const sel = $("#s-preset");
+  sel.value = Array.from(sel.options).some(o => o.value === key) ? key : "custom";
+  syncBarMode();
+}
+/* In "width" mode the module width is a result, not an input — show it, don't accept it. */
+function syncBarMode(){
+  const byWidth = cfg.barmode === "width";
+  $("#fld-mod").classList.toggle("off", byWidth);
+  $("#s-mod").disabled = byWidth;
+  $("#fld-barw").classList.toggle("off", !byWidth);
+  $("#s-barw").disabled = !byWidth;
+}
+function formToCfg(){
+  for (const id in CFG_FIELDS){
+    const k = CFG_FIELDS[id], v = $("#" + id).value;
+    cfg[k] = (typeof DEFAULTS[k] === "number") ? (parseFloat(v) || DEFAULTS[k]) : v;
+  }
+  saveActive();
+  renderPreview();
+}
+
+/* Routes the working profile to its owner: printer settings to the machine,
+   stock and layout to the selected customer (or to the house default). */
+function saveActive(){
+  const co = custById(editingScope());
+  PRINTER_KEYS.forEach(k => house[k] = cfg[k]);
+  /* A customer only gets its own stock once something about the stock actually differs —
+     changing a printer setting shouldn't quietly detach it from the house default. */
+  const differs = STOCK_KEYS.some(k => cfg[k] !== house[k]);
+  if (co && (co.stock || differs)){
+    co.stock = co.stock || {};
+    STOCK_KEYS.forEach(k => co.stock[k] = cfg[k]);
+    store.write("tlp.customers", customers);
+    renderCustomers();
+  } else if (!co){
+    STOCK_KEYS.forEach(k => house[k] = cfg[k]);
+  }
+  store.write("tlp.cfg", house);
+  paintScope();
+}
+
+/* Adopt the stock of whichever customer is selected. */
+function adoptProfile(){
+  cfg = profileFor(editingScope());
+  cfgToForm();
+  paintScope();
+  renderPreview();
+}
+
+function paintScope(){
+  const el = $("#scope");
+  if (!el) return;
+  const co = custById(editingScope());
+  const own = co && co.stock;
+  el.innerHTML = co
+    ? '<div class="flag ' + (own ? "ok" : "warn") + '"><span class="ic">' + (own ? "▣" : "△") + "</span><span>Editing the stock for <b>" +
+      esc(co.name) + "</b>" + (own ? " — its own " + co.stock.w + " × " + co.stock.h + " mm." :
+      " — it still follows the house default. Any change here gives it its own size.") + "</span></div>"
+    : '<div class="flag ok"><span class="ic">▣</span><span>Editing the <b>house default</b>, used by customers that have no size of their own and by one-off labels. Pick a customer on the Print tab to set that customer’s stock.</span></div>';
+  const btn = $("#b-reset");
+  if (btn) btn.textContent = (co && co.stock) ? "Clear — follow house default" : "Reset to defaults";
+}
+function currentEnc(){
+  try { return code128(payloadOf($("#f-code").value.trim() || "00000000", cfg)); } catch(e){ return null; }
+}
+/* Grows the type and bars to the largest scale that still fits the stock,
+   with the real wrapped title measured rather than guessed. */
+/* Sizes the printout's proportions to whatever stock is in the printer:
+   one text size drives the dates, the bar height and the number, and the
+   largest size that still fits the label is the one that gets used. */
+function fitProfile(p, data){
+  p.pad  = Math.max(0.8, Math.round(p.w * 0.026 * 10) / 10);
+  p.barw = Math.round(Math.min(p.w * R_BARW, p.w - p.pad * 2) * 10) / 10;
+  const apply = s => {
+    p.title = Math.round(s * 100) / 100;
+    p.date  = p.title;
+    p.num   = Math.round(s * R_NUM * 100) / 100;
+    p.bar   = Math.round(s * R_BAR * 100) / 100;
+  };
+  let lo = 0.8, hi = 12, best = 0.8;
+  for (let i = 0; i < 22; i++){
+    const mid = (lo + hi) / 2;
+    apply(mid);
+    const mm = measureLabelMM(data, p);
+    if (!mm) return p;                 /* nothing to lay out — leave the sizes alone */
+    if (mm <= p.h * R_FILL){ best = mid; lo = mid; } else hi = mid;
+  }
+  apply(best);
+  const enc = currentEnc();
+  if (enc) p.mod = Math.round((p.barw / enc.modules.length) * 1000) / 1000;
+  return p;
+}
+function autoFit(){
+  fitProfile(cfg, currentLabel());
+  cfgToForm(); saveActive(); renderPreview();
+}
+
+/* ============================================================
+   CSV
+   ============================================================ */
+const cell = s => /[",\n]/.test(String(s)) ? '"' + String(s).replace(/"/g,'""') + '"' : String(s);
+function csvRows(head, rows){ return head.join(",") + "\n" + rows.map(r => r.map(cell).join(",")).join("\n"); }
+
+function toCSV(){
+  return csvRows(["name","size","code","customer"], catalog.map(p => {
+    const c = custById(p.cust);
+    return [p.name, p.size || "", p.code, c ? (c.code || c.name) : ""];
+  }));
+}
+function customersCSV(){
+  return csvRows(["name","code","contact","address","notes","label_width_mm","label_height_mm"],
+    customers.map(c => [c.name, c.code || "", c.contact || "", c.address || "", c.notes || "",
+                        c.stock ? c.stock.w : "", c.stock ? c.stock.h : ""]));
+}
+function logCSV(){
+  return csvRows(["when","by","customer","product","size","barcode","produced","expires","labels"],
+    logbook.map(r => [r.when, r.by || "", r.cust, r.name || "", r.size || "", r.code || "",
+                      r.pd ? fmtDate(r.pd) : "", r.ed ? fmtDate(r.ed) : "", r.copies]));
+}
+function parseCSV(text){
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){
+      if (c === '"' && text[i+1] === '"'){ cell += '"'; i++; }
+      else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ","){ row.push(cell); cell = ""; }
+    else if (c === "\n"){ row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (c !== "\r") cell += c;
+  }
+  if (cell.length || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim().length));
+}
+function importCSV(text){
+  const rows = parseCSV(text);
+  if (!rows.length) return toast("That file had no rows");
+  let start = 0;
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  let ci = { name:0, size:1, code:2, cust:3 };
+  if (head.includes("name") || head.includes("code")){
+    ci = { name: head.indexOf("name"), size: head.indexOf("size"), code: head.indexOf("code"), cust: head.indexOf("customer") };
+    if (ci.cust < 0) ci.cust = head.indexOf("customer");
+    if (ci.size < 0) ci.size = head.indexOf("pack size");
+    start = 1;
+  }
+  let added = 0, updated = 0, newCo = 0;
+  for (let r = start; r < rows.length; r++){
+    const row = rows[r];
+    const name = (row[ci.name] || "").trim();
+    const size = (ci.size >= 0 ? (row[ci.size] || "") : "").trim();
+    const code = (row[ci.code] || "").trim();
+    const cname = (ci.cust >= 0 ? (row[ci.cust] || "") : "").trim();
+    if (!name && !code) continue;
+    let cust = "";
+    if (cname){
+      let c = customers.find(x => x.code.toLowerCase() === cname.toLowerCase() || x.name.toLowerCase() === cname.toLowerCase());
+      if (!c){                       /* a customer named in the file but not on the list is created */
+        const looksLikeCode = !/\s/.test(cname) && cname.length <= 12;
+        c = { id: uid(), name: cname, code: looksLikeCode ? cname : "", contact:"", address:"", notes:"" };
+        customers.push(c); newCo++;
+      }
+      cust = c.id;
+    }
+    const hit = catalog.findIndex(p => p.code === code);
+    if (hit >= 0){ catalog[hit] = { name, size, code, cust: cust || catalog[hit].cust }; updated++; }
+    else { catalog.push({ name, size, code, cust }); added++; }
+  }
+  renderCustomers();
+  toast(added + " added, " + updated + " updated" + (newCo ? ", " + newCo + " new customer" + (newCo === 1 ? "" : "s") : ""));
+}
+
+function importCustomersCSV(text){
+  const rows = parseCSV(text);
+  if (!rows.length) return toast("That file had no rows");
+  let start = 0, ci = { name:0, code:1, contact:2, address:3, notes:4, w:5, h:6 };
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  if (head.includes("name")){
+    ci = { name: head.indexOf("name"), code: head.indexOf("code"), contact: head.indexOf("contact"),
+           address: head.indexOf("address"), notes: head.indexOf("notes"),
+           w: head.indexOf("label_width_mm"), h: head.indexOf("label_height_mm") };
+    start = 1;
+  }
+  const pick = (row, i) => (i >= 0 ? (row[i] || "") : "").trim();
+  let added = 0, updated = 0;
+  for (let r = start; r < rows.length; r++){
+    const row = rows[r];
+    const rec = { name: pick(row, ci.name), code: pick(row, ci.code), contact: pick(row, ci.contact),
+                  address: pick(row, ci.address), notes: pick(row, ci.notes) };
+    if (!rec.name) continue;
+    const w = parseFloat(pick(row, ci.w)), h = parseFloat(pick(row, ci.h));
+    if (w && h){
+      const p = fitProfile(Object.assign({}, house, { w, h }), currentLabel());
+      rec.stock = {};
+      STOCK_KEYS.forEach(k => rec.stock[k] = p[k]);
+    }
+    const hit = customers.findIndex(c => (rec.code && c.code.toLowerCase() === rec.code.toLowerCase()) ||
+                                          c.name.toLowerCase() === rec.name.toLowerCase());
+    if (hit >= 0){ customers[hit] = Object.assign(customers[hit], rec); updated++; }
+    else { customers.push(Object.assign({ id: uid() }, rec)); added++; }
+  }
+  renderCustomers();
+  toast(added + " added, " + updated + " updated");
+}
+async function download(name, text, type){
+  /* Hosted copies of this page save through the viewer; the local copy uses a plain link. */
+  try {
+    const dl = (typeof claude !== "undefined" && claude.use) ? await claude.use("downloads") : null;
+    if (dl){
+      try { await dl.save({ filename:name, data:text }); toast("Saved " + name); return; }
+      catch(err){
+        const code = err && err.code;
+        if (code === "declined" || code === "rate_limited") return;
+        if (code === "extension_not_enabled" || code === "rejected_extension"){
+          try { await dl.save({ filename:name.replace(/\.csv$/, ".txt"), data:text });
+                toast("Saved as .txt — rename it to .csv"); return; } catch(e2){}
+        }
+        await copy(text, "Product list");
+        return;
+      }
+    }
+  } catch(e){}
+  const blob = new Blob([text], { type: type || "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/* ============================================================
+   Chrome
+   ============================================================ */
+let toastTimer;
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("up");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("up"), 2200);
+}
+async function copy(text, what){
+  try { await navigator.clipboard.writeText(text); toast(what + " copied"); }
+  catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast(what + " copied"); }
+    catch(e2){ toast("Copy blocked — select the text and copy it by hand"); }
+    ta.remove();
+  }
+}
+
+/* ---------- wiring ---------- */
+$$(".tabs button").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.admin && !isAdmin()) return;
+  selectTab(b.dataset.tab);
+}));
+
+["f-name","f-size","f-code","f-pd","f-ed","f-copies"].forEach(id =>
+  $("#" + id).addEventListener("input", renderPreview));
+
+$("#f-pick").addEventListener("change", e => { if (e.target.value !== "") loadProduct(+e.target.value); });
+$("#f-cust").addEventListener("change", () => { renderCatalog(); adoptProfile(); });
+
+$("[data-pd]").addEventListener("click", () => { $("#f-pd").value = todayISO(); renderPreview(); });
+$$("[data-shelf]").forEach(b => b.addEventListener("click", () => {
+  const pd = $("#f-pd").value || todayISO();
+  $("#f-pd").value = pd;
+  $("#f-ed").value = addMonths(pd, +b.dataset.shelf);
+  renderPreview();
+}));
+
+$("#b-save").addEventListener("click", () => {
+  const d = currentLabel();
+  if (!d.code) return toast("Enter a barcode number first");
+  if (!customers.length) return toast("Add a customer first — every product belongs to one");
+  const cust = $("#f-cust").value;
+  const hit = catalog.findIndex(p => p.code === d.code);
+  if (!cust && (hit < 0 || !catalog[hit].cust)) return toast("Pick the customer above before saving this product");
+  if (hit >= 0){ catalog[hit] = { name:d.name, size:d.size, code:d.code, cust: cust || catalog[hit].cust }; toast("Product updated"); }
+  else { catalog.push({ name:d.name, size:d.size, code:d.code, cust }); toast("Product saved"); }
+  renderCatalog();
+});
+
+$("#b-add").addEventListener("click", () => {
+  const name = $("#n-name").value.trim(), size = $("#n-size").value.trim(), code = $("#n-code").value.trim();
+  const cust = $("#n-cust").value;
+  if (needCompany("#add-msg")) return;
+  if (!name || !code) return void ($("#add-msg").textContent = "A name and a barcode number are both required.");
+  if (!cust) return void ($("#add-msg").textContent = "Choose the customer this product belongs to.");
+  try { code128(code); } catch(e){ $("#add-msg").textContent = e.message; return; }
+  const clash = catalog.findIndex(p => p.code === code);
+  if (clash >= 0 && catalog[clash].code !== editingProduct){
+    return void ($("#add-msg").textContent = "That barcode number is already saved.");
+  }
+  if (editingProduct){
+    const i = catalog.findIndex(p => p.code === editingProduct);
+    if (i >= 0) catalog[i] = { name, size, code, cust };
+    toast("Updated " + name);
+  } else {
+    catalog.push({ name, size, code, cust });
+    toast("Added " + name);
+  }
+  clearProductForm();
+  renderCatalog();
+});
+$("#b-pcancel").addEventListener("click", clearProductForm);
+
+/* ---- customers ---- */
+$("#b-cadd").addEventListener("click", () => {
+  const rec = customerForm();
+  if (!rec.name) return void ($("#cus-msg").textContent = "A customer name is required.");
+  const clash = customers.findIndex(c => c.name.toLowerCase() === rec.name.toLowerCase() && c.id !== editingCustomer);
+  if (clash >= 0) return void ($("#cus-msg").textContent = "That customer is already on the list.");
+  if (editingCustomer){
+    const i = customers.findIndex(c => c.id === editingCustomer);
+    if (i >= 0){
+      const stock = stockFromForm(customers[i].stock);
+      customers[i] = Object.assign(customers[i], rec);
+      if (stock) customers[i].stock = stock; else delete customers[i].stock;
+    }
+    toast("Customer updated");
+  } else {
+    const co = Object.assign({ id: uid() }, rec);
+    const stock = stockFromForm(null);
+    if (stock) co.stock = stock;
+    customers.push(co);
+    toast("Added " + rec.name);
+  }
+  clearCustomerForm(); renderCustomers(); adoptProfile();
+});
+$("#b-ccancel").addEventListener("click", clearCustomerForm);
+
+$("#cus-body").addEventListener("click", e => {
+  const ed = e.target.closest("[data-cedit]"), del = e.target.closest("[data-cdel]");
+  if (ed){
+    const c = customers[+ed.dataset.cedit];
+    editingCustomer = c.id;
+    $("#c-name").value = c.name; $("#c-code").value = c.code || "";
+    $("#c-contact").value = c.contact || ""; $("#c-addr").value = c.address || "";
+    $("#c-notes").value = c.notes || "";
+    $("#c-w").value = c.stock ? c.stock.w : "";
+    $("#c-h").value = c.stock ? c.stock.h : "";
+    $("#cus-title").textContent = "Edit customer";
+    $("#b-cadd").textContent = "Save changes";
+    $("#b-ccancel").style.display = "";
+    $("#cus-msg").textContent = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  if (del){
+    const c = customers[+del.dataset.cdel];
+    const n = catalog.filter(p => p.cust === c.id).length;
+    customers.splice(+del.dataset.cdel, 1);
+    catalog.forEach(p => { if (p.cust === c.id) p.cust = ""; });
+    if (editingCustomer === c.id) clearCustomerForm();
+    if ($("#f-cust").value === c.id) $("#f-cust").value = "";
+    renderCustomers();
+    toast("Removed " + c.name + (n ? " — " + n + " product" + (n === 1 ? " now needs" : "s now need") + " a customer" : ""));
+  }
+});
+
+$("#b-cexport").addEventListener("click", () => download("customers.csv", customersCSV(), "text/csv"));
+$("#b-cimport").addEventListener("click", () => $("#c-file").click());
+$("#c-file").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => importCustomersCSV(String(r.result));
+  r.readAsText(f); e.target.value = "";
+});
+
+/* ---- log ---- */
+$("#b-lexport").addEventListener("click", () => download("print-log.csv", logCSV(), "text/csv"));
+$("#b-lclear").addEventListener("click", () => { logbook = []; renderLog(); toast("Log cleared"); });
+
+$("#cat-body").addEventListener("change", e => {
+  const sel = e.target.closest(".rowco");
+  if (!sel) return;
+  const p = catalog[+sel.dataset.row];
+  p.cust = sel.value;
+  renderCatalog(); renderCustomers();
+  toast(p.cust ? p.name + " → " + custName(p.cust) : "Customer cleared");
+});
+
+$("#cat-body").addEventListener("click", e => {
+  const use = e.target.closest("[data-use]"), del = e.target.closest("[data-del]");
+  const ed = e.target.closest("[data-pedit]");
+  if (ed){ editProduct(+ed.dataset.pedit); return; }
+  if (use){
+    const i = +use.dataset.use;
+    loadProduct(i);
+    $$(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === "print")));
+    $$(".panel").forEach(p => p.classList.toggle("on", p.id === "p-print"));
+    renderPreview();
+  }
+  if (del){
+    const i = +del.dataset.del;
+    const p = catalog[i];
+    catalog.splice(i,1);
+    if (editingProduct === p.code) clearProductForm();
+    renderCatalog(); toast("Removed " + p.name);
+  }
+});
+
+$("#b-addq").addEventListener("click", () => {
+  const d = currentLabel();
+  if (!d.code && !d.name) return toast("Fill in the label first");
+  queue.push(d); renderQueue(); toast("Queued ×" + d.copies);
+});
+$("#b-clearq").addEventListener("click", () => { queue = []; renderQueue(); });
+$("#q-list").addEventListener("click", e => {
+  const b = e.target.closest("[data-qdel]");
+  if (b){ queue.splice(+b.dataset.qdel, 1); renderQueue(); }
+});
+$("#b-printq").addEventListener("click", () => printLabels(queue));
+$("#b-print").addEventListener("click", () => printLabels([currentLabel()]));
+$("#b-copyzpl").addEventListener("click", () => copy($("#zpl").textContent, "ZPL"));
+
+$("#b-zoom").addEventListener("click", () => {
+  zoom = zoom >= 4 ? 1 : zoom + 1;
+  renderPreview();
+});
+
+$("#s-preset").addEventListener("change", e => {
+  if (e.target.value === "custom") return;
+  const p = e.target.value.split("x");
+  $("#s-w").value = p[0]; $("#s-h").value = p[1];
+  formToCfg(); autoFit();
+});
+Object.keys(CFG_FIELDS).forEach(id => {
+  if (id !== "s-barmode") $("#" + id).addEventListener("input", formToCfg);
+});
+
+/* Switching sizing method carries the current measurement over, so the label doesn't jump. */
+$("#s-barmode").addEventListener("change", () => {
+  const was = cfg.barmode, now = $("#s-barmode").value;
+  if (was === now) return;
+  const enc = currentEnc();
+  if (enc){
+    if (now === "width")  cfg.barw = Math.round(Math.min(enc.modules.length * cfg.mod, cfg.w - cfg.pad*2) * 10) / 10;
+    if (now === "module") cfg.mod  = Math.round((Math.min(cfg.barw, cfg.w - cfg.pad*2) / enc.modules.length) * 1000) / 1000;
+  }
+  cfg.barmode = now;
+  cfgToForm(); store.write("tlp.cfg", cfg); renderPreview();
+});
+$("#b-fit").addEventListener("click", autoFit);
+$("#b-reset").addEventListener("click", () => {
+  const co = custById(editingScope());
+  if (co && co.stock){
+    delete co.stock;                       /* fall back to the house default */
+    store.write("tlp.customers", customers);
+    renderCustomers();
+    adoptProfile();
+    toast(co.name + " now follows the house default");
+  } else {
+    house = Object.assign({}, house, DEFAULTS);
+    store.write("tlp.cfg", house);
+    adoptProfile();
+    toast("Reset to defaults");
+  }
+});
+
+$("#b-export").addEventListener("click", () => download("products.csv", toCSV(), "text/csv"));
+$("#b-import").addEventListener("click", () => $("#f-file").click());
+$("#f-file").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => importCSV(String(r.result));
+  r.readAsText(f);
+  e.target.value = "";
+});
+
+window.addEventListener("resize", () => { zoom = Math.min(zoom, fitZoom()); renderPreview(); });
+
+/* ---------- boot ---------- */
+(function init(){
+  cfgToForm();
+  renderCustomers();     /* also renders the catalog */
+  renderQueue();
+  renderLog();
+  const d = store.read("tlp.draft", null);
+  if (d){
+    $("#f-name").value = d.name || ""; $("#f-size").value = d.size || "";
+    $("#f-code").value = d.code || ""; $("#f-copies").value = d.copies || 1;
+    if (d.cust && customers.some(c => c.id === d.cust)){ $("#f-cust").value = d.cust; renderCatalog(); }
+    $("#f-pd").value = d.pd || todayISO();
+    $("#f-ed").value = d.ed || addMonths($("#f-pd").value, 12);
+  } else {
+    loadProduct(0);
+    $("#f-pick").value = "0";
+    $("#f-pd").value = todayISO();
+    $("#f-ed").value = addMonths(todayISO(), 12);
+  }
+  zoom = Math.min(2, fitZoom());
+  migrateFormat();         /* size everything to the printout's proportions, once */
+  adoptProfile();          /* the selected customer's stock, or the house default */
+  paintScope();
+  renderUsers();
+  openGate();
+})();
+
+/* First run asks for an administrator; after that the station is locked until someone signs in. */
+function openGate(){
+  if (!users || !users.length){ showGate("setup"); return; }
+  let token = null;
+  try { token = sessionStorage.getItem("tlp.session") || localStorage.getItem("tlp.session"); } catch(e){}
+  const id = token ? (JSON.parse(token) || {}).id : null;
+  const u = id ? users.find(x => x.id === id) : null;
+  if (u){ startSession(u, !!(window.localStorage && localStorage.getItem("tlp.session"))); return; }
+  showGate("login");
+  $("#login-title").textContent = "Sign in";
+  $("#login-note").textContent = "The station is locked. Sign in to print.";
+}
+
+/* Re-fits saved settings when the label format itself changes. */
+function migrateFormat(){
+  if (house.fmtv === 2) return;
+  const data = currentLabel();
+  fitProfile(house, data);
+  house.fmtv = 2;
+  customers.forEach(co => {
+    if (!co.stock) return;
+    const p = fitProfile(Object.assign({}, house, { w: co.stock.w, h: co.stock.h }), data);
+    STOCK_KEYS.forEach(k => co.stock[k] = p[k]);
+  });
+  store.write("tlp.cfg", house);
+  store.write("tlp.customers", customers);
+}
+</script>
+
+</body>
+</html>

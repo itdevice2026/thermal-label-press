@@ -43,6 +43,26 @@ with sync_playwright() as p:
           ["Hard Discount Philippines,Inc./DALI","AllJoy Foods/ALLJOY"])
     check("customer stock saved", pg.evaluate("!!__DB.lbl_customers.find(c=>c.code=='ALLJOY').stock"), True)
 
+    # a customer can carry a logo, shrunk on the way in
+    i = pg.evaluate("customers.findIndex(c=>c.code=='DALI')")
+    pg.click(f'[data-cedit="{i}"]'); pg.wait_for_timeout(300)
+    pg.set_input_files("#c-logo-file", "/tmp/testlogo.png"); pg.wait_for_timeout(600)
+    check("logo preview appears", pg.evaluate("!!document.querySelector('#c-logo-box img')"), True)
+    pg.click("#b-cadd"); pg.wait_for_timeout(600)
+    logo = pg.evaluate("__DB.lbl_customers.find(c=>c.code=='DALI').logo || ''")
+    check("logo saved to the customer", logo.startswith("data:image/"), True)
+    check("logo is small enough for a row", len(logo) < 60000, True)
+    check("logo shows beside the name in the list",
+          pg.evaluate("!!document.querySelector('#cus-body .coMark')"), True)
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
+    pg.select_option("#f-cust", pg.evaluate("customers.find(c=>c.code=='DALI').id")); pg.wait_for_timeout(400)
+    check("logo shows beside the customer picker",
+          pg.evaluate("!!document.querySelector('#f-cust-mark img')"), True)
+    pg.select_option("#f-cust", ""); pg.wait_for_timeout(300)
+    check("and clears when no customer is chosen",
+          pg.evaluate("!document.querySelector('#f-cust-mark img')"), True)
+    pg.click('[data-tab="customers"]'); pg.wait_for_timeout(200)
+
     pg.click('[data-tab="products"]'); pg.wait_for_timeout(200)
     dali = pg.evaluate("customers.find(c=>c.code=='DALI').id")
     pg.fill("#n-name","AllJoy Chicken Liver"); pg.fill("#n-size","250g"); pg.fill("#n-code","39012472")
@@ -75,6 +95,44 @@ with sync_playwright() as p:
         codes.append(r[0].text if r else None)
     check("both copies print and scan", codes, ["39012472\n","39012472\n"])
 
+    # the queue count is editable in place
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
+    pg.fill("#f-copies","3"); pg.click("#b-addq"); pg.wait_for_timeout(400)
+    check("queued with the form count", pg.input_value('[data-qty="0"]'), "3")
+    check("queue total", pg.inner_text("#q-count").lower(), "3 labels")
+    pg.fill('[data-qty="0"]', "12"); pg.wait_for_timeout(300)
+    check("count edited in place", pg.evaluate("queue[0].copies"), 12)
+    check("total follows", pg.inner_text("#q-count").lower(), "12 labels")
+    check("the row keeps focus while typing",
+          pg.evaluate("document.activeElement && document.activeElement.dataset.qty"), "0")
+    pg.fill('[data-qty="0"]', "0"); pg.wait_for_timeout(200)
+    check("zero is floored to one", pg.evaluate("queue[0].copies"), 1)
+    pg.fill('[data-qty="0"]', "2"); pg.wait_for_timeout(200)
+    pg.evaluate("document.querySelector('[data-qty=\"0\"]').blur()"); pg.wait_for_timeout(200)
+    pg.evaluate("window.print=()=>{}")
+    before = pg.evaluate("__DB.lbl_print_log.length")
+    pg.click("#b-printq"); pg.wait_for_timeout(700)
+    check("queue prints the edited count",
+          pg.evaluate("document.querySelectorAll('#sheet .label').length"), 2)
+    check("log records the edited count",
+          pg.evaluate("__DB.lbl_print_log[0].copies"), 2)
+    pg.click("#b-clearq"); pg.wait_for_timeout(300)
+    check("queue cleared", pg.inner_text("#q-count").lower(), "0 labels")
+
+    # the ZPL downloads as a file the printer can take as-is
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(300)
+    with pg.expect_download() as dl:
+        pg.click("#b-dlzpl")
+    d = dl.value
+    check("zpl filename follows the barcode", d.suggested_filename, "39012472.zpl")
+    path = "/tmp/dl.zpl"; d.save_as(path)
+    body = open(path, "rb").read()
+    check("zpl file starts correctly", body.startswith(b"^XA"), True)
+    check("zpl file ends correctly", body.rstrip().endswith(b"^XZ"), True)
+    check("zpl uses CRLF", b"\r\n" in body and b"\n\n" not in body, True)
+    check("zpl ends with a newline", body.endswith(b"\r\n"), True)
+    check("zpl carries the barcode and the Enter suffix", b"^FD39012472_0a^FS" in body, True)
+
     # settings are shared
     pg.click('[data-tab="setup"]'); pg.wait_for_timeout(200)
     pg.fill("#s-dark","18"); pg.wait_for_timeout(500)
@@ -94,23 +152,146 @@ with sync_playwright() as p:
     pg.fill("#li-email","nomer@meatplus.ph"); pg.fill("#li-pass","labelpress1")
     pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(800)
     pg.click('[data-tab="users"]'); pg.wait_for_timeout(400)
-    rosa = pg.evaluate("profiles.find(p=>p.name==='Rosa dela Cruz').id")
-    pg.select_option(f'.rowrole[data-id="{rosa}"]', "operator"); pg.wait_for_timeout(500)
+    check("users table columns",
+          pg.eval_on_selector_all("#p-users thead th","e=>e.map(x=>x.textContent.trim()).filter(Boolean)"),
+          ["Name","Username","Role","Last signed in"])
+    check("username column shows the email",
+          pg.evaluate("[...document.querySelectorAll('#usr-body tr')].some(r=>r.innerText.includes('rosa@meatplus.ph'))"),
+          True)
+    check("last signed in is recorded",
+          pg.evaluate("!!__DB.lbl_profiles.find(p=>p.name==='Nomer Santos').last_seen"), True)
+
+    # promote her through the Edit form, the way the offline build works
+    i = pg.evaluate("profiles.findIndex(p=>p.name==='Rosa dela Cruz')")
+    pg.click(f'[data-uedit="{i}"]'); pg.wait_for_timeout(300)
+    check("edit fills the form", pg.input_value("#u-user"), "rosa@meatplus.ph")
+    check("username is not editable", pg.is_disabled("#u-user"), True)
+    pg.select_option("#u-role","operator")
+    pg.click("#b-uadd"); pg.wait_for_timeout(700)
     check("role updated", pg.evaluate("__DB.lbl_profiles.find(p=>p.name==='Rosa dela Cruz').role"), "operator")
+    check("form resets after saving", pg.inner_text("#usr-title").lower(), "add a user")
+
+    # admin creates an account outright, password and all
+    pg.fill("#u-name","Junjie Tupas"); pg.fill("#u-user","junjie.tupas@meatplus.ph")
+    pg.select_option("#u-role","operator")
+    pg.fill("#u-pin","labelpress3"); pg.fill("#u-pin2","labelpress3")
+    pg.click("#b-uadd"); pg.wait_for_timeout(800)
+    check("account created by the admin",
+          pg.evaluate("__DB.lbl_profiles.find(p=>p.name==='Junjie Tupas').role"), "operator")
+    check("and it has a real login",
+          pg.evaluate("!!__DB.users.find(u=>u.email==='junjie.tupas@meatplus.ph')"), True)
+
+    # mismatched passwords are refused
+    pg.fill("#u-name","Broken One"); pg.fill("#u-user","broken@meatplus.ph")
+    pg.fill("#u-pin","aaaaaa"); pg.fill("#u-pin2","bbbbbb")
+    pg.click("#b-uadd"); pg.wait_for_timeout(400)
+    check("mismatched passwords refused", pg.inner_text("#usr-msg"), "Those two do not match.")
+    check("nothing was created", pg.evaluate("!__DB.users.find(u=>u.email==='broken@meatplus.ph')"), True)
+    check("cancel stays hidden while adding", pg.is_visible("#b-ucancel"), False)
+    pg.fill("#u-name",""); pg.fill("#u-user",""); pg.fill("#u-pin",""); pg.fill("#u-pin2","")
+
+    # the last administrator cannot be demoted away
+    j = pg.evaluate("profiles.findIndex(p=>p.name==='Nomer Santos')")
+    check("cannot delete yourself", pg.evaluate(f"!document.querySelector('[data-udel=\"{j}\"]')"), True)
+
+    # Lock puts the gate back without ending the session
+    pg.click("#b-lock"); pg.wait_for_timeout(400)
+    check("lock shows the sign-in gate", pg.is_visible("#login-panel"), True)
+    check("lock keeps the session", pg.evaluate("!!sb.user()"), True)
+    check("lock fills in the email", pg.input_value("#li-email"), "nomer@meatplus.ph")
+    pg.fill("#li-pass","labelpress1")
+    pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
+    check("unlocks again", pg.is_visible("#gate"), False)
 
     # operator: can print, cannot administer
     pg.click("#b-signout"); pg.wait_for_timeout(600)
     pg.fill("#li-email","rosa@meatplus.ph"); pg.fill("#li-pass","labelpress2")
     pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
+    check("every account has its own id",
+          pg.evaluate("new Set(__DB.users.map(u=>u.id)).size === __DB.users.length"), True)
     check("operator signed in", pg.inner_text("#who-role").lower(), "operator")
-    check("operator tabs", pg.eval_on_selector_all(".tabs button","e=>e.filter(x=>x.offsetParent!==null).map(x=>x.textContent)"),
-          ["Print","Print log"])
+    check("operator tabs",
+          pg.eval_on_selector_all(".tabs button","e=>e.filter(x=>x.offsetParent!==null).map(x=>x.textContent.trim())"),
+          ["Print","Products","Customers","Print log"])
     check("operator sees the shared products", pg.evaluate("catalog.length"), 1)
     pg.evaluate("window.print=()=>{}"); pg.click("#b-print"); pg.wait_for_timeout(600)
     check("operator print logged under her name", pg.evaluate("__DB.lbl_print_log[__DB.lbl_print_log.length-1].by_name"), "Rosa dela Cruz")
     check("operator cannot write products",
           pg.evaluate("(async()=>{try{await sb.insert('lbl_products',[{name:'x',code:'1',customer_id:null}]);return 'ALLOWED'}catch(e){return 'blocked'}})()"),
           "blocked")
+    # the account-making function must refuse anyone who is not an administrator
+    check("operator cannot create accounts",
+          pg.evaluate("(async()=>{try{await db.admin('create',{name:'Sneak',email:'sneak@meatplus.ph',password:'sneak123',role:'admin'});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+          "blocked")
+    check("operator cannot revoke anyone",
+          pg.evaluate("(async()=>{try{await db.admin('revoke',{id:profiles[0]&&profiles[0].id});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+          "blocked")
+    check("no sneak account exists", pg.evaluate("!__DB.users.find(u=>u.email==='sneak@meatplus.ph')"), True)
+
+    # ---- operator proposes; admin approves ----
+    pg.click('[data-tab="products"]'); pg.wait_for_timeout(400)
+    check("operator can reach Products", pg.is_visible("#b-add"), True)
+    check("operator cannot import", pg.is_visible("#b-import"), False)
+    check("operator sees the approval note", pg.is_visible('[data-op="1"]'), True)
+    pg.fill("#n-name","AllJoy Chicken Feet"); pg.fill("#n-size","500g"); pg.fill("#n-code","39012480")
+    pg.select_option("#n-cust", pg.evaluate("customers.find(c=>c.code=='DALI').id"))
+    pg.click("#b-add"); pg.wait_for_timeout(800)
+    row = pg.evaluate("__DB.lbl_products.find(p=>p.code==='39012480')")
+    check("operator submission is pending", row["status"], "pending")
+    check("submission is stamped with the operator", row["created_by"] == pg.evaluate("me.id"), True)
+    check("pending row is tagged in the list",
+          pg.evaluate("!!document.querySelector('#cat-body tr.isPending')"), True)
+    check("operator gets no Approve button",
+          pg.evaluate("!document.querySelector('[data-papprove]')"), True)
+
+    # the pending product must not be printable
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(400)
+    check("pending product is not offered for printing",
+          pg.evaluate("[...document.querySelectorAll('#f-pick option')].every(o=>!o.textContent.includes('Chicken Feet'))"), True)
+
+    # and the operator cannot approve it themselves, however they ask
+    check("operator cannot approve by API",
+          pg.evaluate("(async()=>{try{await db.approveProduct(catalog.find(p=>p.code==='39012480'));return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+          "blocked")
+    check("still pending after the attempt",
+          pg.evaluate("__DB.lbl_products.find(p=>p.code==='39012480').status"), "pending")
+
+    # operator proposes a customer too
+    pg.click('[data-tab="customers"]'); pg.wait_for_timeout(300)
+    pg.fill("#c-name","Puregold Price Club"); pg.fill("#c-code","PGOLD")
+    pg.click("#b-cadd"); pg.wait_for_timeout(700)
+    check("customer submission is pending",
+          pg.evaluate("__DB.lbl_customers.find(c=>c.code==='PGOLD').status"), "pending")
+    check("pending customer is not offered on the Print tab",
+          pg.evaluate("[...document.querySelectorAll('#f-cust option')].every(o=>!o.textContent.includes('Puregold'))"), True)
+
+    # admin signs in and approves
+    pg.click("#b-signout"); pg.wait_for_timeout(600)
+    pg.fill("#li-email","nomer@meatplus.ph"); pg.fill("#li-pass","labelpress1")
+    pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
+    pg.click('[data-tab="products"]'); pg.wait_for_timeout(400)
+    check("admin sees a pending badge", pg.is_visible("#pend-prod"), True)
+    check("badge counts the queue", pg.inner_text("#pend-prod"), "1")
+    i = pg.evaluate("catalog.findIndex(p=>p.code==='39012480')")
+    pg.click(f'[data-papprove="{i}"]'); pg.wait_for_timeout(800)
+    check("approved in the database",
+          pg.evaluate("__DB.lbl_products.find(p=>p.code==='39012480').status"), "approved")
+    check("badge clears", pg.evaluate("document.querySelector('#pend-prod').hidden"), True)
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(500)
+    check("approved product is now printable",
+          pg.evaluate("[...document.querySelectorAll('#f-pick option')].some(o=>o.textContent.includes('Chicken Feet'))"), True)
+
+    # admin rejects the proposed customer
+    pg.click('[data-tab="customers"]'); pg.wait_for_timeout(400)
+    j = pg.evaluate("customers.findIndex(c=>c.code==='PGOLD')")
+    pg.on("dialog", lambda d: d.accept())
+    pg.click(f'[data-cdel="{j}"]'); pg.wait_for_timeout(800)
+    check("rejected customer is gone",
+          pg.evaluate("!__DB.lbl_customers.find(c=>c.code==='PGOLD')"), True)
+
+    pg.click("#b-signout"); pg.wait_for_timeout(600)
+    pg.fill("#li-email","rosa@meatplus.ph"); pg.fill("#li-pass","labelpress2")
+    pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
 
     # session survives reload
     pg.reload(); pg.wait_for_timeout(1000)
