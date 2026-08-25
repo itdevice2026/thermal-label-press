@@ -212,6 +212,18 @@ $("#b-printq").addEventListener("click", () => printLabels(queue));
 $("#b-print").addEventListener("click", () => printLabels([currentLabel()]));
 $("#b-copyzpl").addEventListener("click", () => copy($("#zpl").textContent, "ZPL"));
 
+/* A file rather than the clipboard, so it can be sent to the printer as-is:
+   Zebra Setup Utilities, `copy /b` to a shared queue, or straight at port 9100.
+   ZPL wants CRLF and a trailing newline — some firmware ignores a last line
+   that arrives without one. */
+$("#b-dlzpl").addEventListener("click", () => {
+  const zpl = $("#zpl").textContent.trim();
+  if (!zpl) return toast("Nothing to send yet");
+  const d = currentLabel();
+  const stem = (d.code || d.name || "label").replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  download((stem || "label") + ".zpl", zpl.replace(/\r?\n/g, "\r\n") + "\r\n", "text/plain");
+});
+
 $("#b-zoom").addEventListener("click", () => {
   zoom = zoom >= 4 ? 1 : zoom + 1;
   renderPreview();
