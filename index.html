@@ -106,7 +106,7 @@
         <div class="grid2">
           <div class="field span2">
             <label for="f-cust">Customer</label>
-            <select id="f-cust"></select>
+            <div class="custRow"><select id="f-cust"></select><span id="f-cust-mark"></span></div>
             <span class="hint">Every product belongs to a customer. Choosing one narrows the product list and is recorded in the print log — customer details never appear on the label.</span>
           </div>
           <div class="field span2">
@@ -239,6 +239,14 @@
         <div class="field"><label for="c-contact">Contact person</label><input type="text" id="c-contact" placeholder="Ms. Rivera · 0917 000 0000"></div>
         <div class="field" style="grid-column:span 2"><label for="c-addr">Address</label><input type="text" id="c-addr" placeholder="Quezon City"></div>
         <div class="field"><label for="c-notes">Notes</label><input type="text" id="c-notes" placeholder="Deliveries Tue &amp; Fri"></div>
+        <div class="field"><label>Logo</label>
+          <div class="logoPick">
+            <span class="logoBox" id="c-logo-box"><span class="logoNone">none</span></span>
+            <button class="btn tiny" id="b-clogo" type="button">Choose…</button>
+            <button class="btn tiny ghost danger" id="b-clogo-x" type="button" style="display:none">Remove</button>
+            <input type="file" id="c-logo-file" accept="image/*" style="display:none">
+          </div>
+        </div>
         <div class="field"><label for="c-w">Label width (mm)</label><input type="number" id="c-w" class="mono" step="0.5" min="20" placeholder="house default"></div>
         <div class="field"><label for="c-h">Label height (mm)</label><input type="number" id="c-h" class="mono" step="0.5" min="15" placeholder="house default"></div>
         <div class="field" style="display:flex;justify-content:flex-end">
@@ -265,7 +273,7 @@
       <button class="btn" id="b-cexport">Export CSV</button>
       <button class="btn" id="b-cimport">Import CSV</button>
       <input type="file" id="c-file" accept=".csv,text/csv" style="display:none">
-      <span class="hint">Columns: name, code, contact, address, notes.</span>
+      <span class="hint">Columns: name, code, contact, address, notes. Logos are not part of the CSV — set those here.</span>
     </div>
   </div>
 </section>
