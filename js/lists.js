@@ -3,6 +3,8 @@
    ============================================================ */
 function renderCatalog(){
   const who  = $("#f-cust").value;
+  const mark = $("#f-cust-mark");
+  if (mark) mark.innerHTML = logoMark(custById(who), "pickMark");
   const pick = $("#f-pick");
   const cur  = pick.value;
   const visible = catalog.map((p,i) => [p,i]).filter(([p]) => !who || !p.cust || p.cust === who);
@@ -73,7 +75,7 @@ function renderCustomers(){
     const stock = c.stock
       ? '<span class="mono">' + c.stock.w + " × " + c.stock.h + " mm</span>"
       : '<span class="mono" style="color:var(--ink-3)">' + house.w + " × " + house.h + " mm · house</span>";
-    return "<tr><td>" + esc(c.name) + '</td><td class="mono">' + esc(c.code || "—") + "</td><td>" + stock + "</td><td>" +
+    return '<tr><td><span class="coName">' + logoMark(c, "coMark") + "<span>" + esc(c.name) + '</span></span></td><td class="mono">' + esc(c.code || "—") + "</td><td>" + stock + "</td><td>" +
       esc(c.contact || "—") + "</td><td>" + esc(c.address || "—") + "</td><td>" + esc(c.notes || "—") +
       '</td><td class="mono">' + n + '</td><td class="acts">' +
       '<button class="btn tiny" data-cedit="' + i + '">Edit</button> ' +
@@ -82,13 +84,61 @@ function renderCustomers(){
   renderCatalog();
 }
 
+/* The mark shown beside a customer name. Absent is the normal case, so it
+   costs nothing when a customer has no logo. */
+function logoMark(c, cls){
+  return c && c.logo ? '<img class="' + cls + '" src="' + esc(c.logo) + '" alt="">' : "";
+}
+
+/* Held on the form rather than read back from the DOM, so choosing a file and
+   then cancelling leaves the saved customer untouched. */
+let pendingLogo = null;
+function paintLogoBox(){
+  const box = $("#c-logo-box");
+  box.innerHTML = pendingLogo
+    ? '<img src="' + esc(pendingLogo) + '" alt="">'
+    : '<span class="logoNone">none</span>';
+  $("#b-clogo-x").style.display = pendingLogo ? "" : "none";
+}
+
+/* Shrinks whatever was chosen to something a database row can carry: 160px on
+   the long side, WebP where the browser has it. A 400 KB photo lands at a few
+   kilobytes, and the list stays one round trip. */
+function shrinkLogo(file){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error("That file could not be read"));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("That does not look like an image"));
+      img.onload = () => {
+        const max = 160;
+        const s = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        const cx = cv.getContext("2d");
+        cx.drawImage(img, 0, 0, w, h);
+        let url = "";
+        try { url = cv.toDataURL("image/webp", 0.88); } catch(e){}
+        if (url.indexOf("data:image/webp") !== 0) url = cv.toDataURL("image/png");
+        if (url.length > 60000) return reject(new Error("That image is too detailed — try a simpler one"));
+        resolve(url);
+      };
+      img.src = String(fr.result);
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
 function customerForm(){
   return {
     name:    $("#c-name").value.trim(),
     code:    $("#c-code").value.trim(),
     contact: $("#c-contact").value.trim(),
     address: $("#c-addr").value.trim(),
-    notes:   $("#c-notes").value.trim()
+    notes:   $("#c-notes").value.trim(),
+    logo:    pendingLogo
   };
 }
 /* Width and height typed on the customer form: build a full stock profile, sized to fit. */
@@ -103,6 +153,8 @@ function stockFromForm(existing){
 }
 function clearCustomerForm(){
   ["c-name","c-code","c-contact","c-addr","c-notes","c-w","c-h"].forEach(id => $("#" + id).value = "");
+  $("#c-logo-file").value = "";
+  pendingLogo = null; paintLogoBox();
   editingCustomer = null;
   $("#cus-title").textContent = "Add a customer";
   $("#b-cadd").textContent = "Add customer";
