@@ -180,6 +180,17 @@
     });
   };
 
+  /* Calls a database function. Used for the narrow writes a policy cannot
+     express — stamping last-seen without opening the whole row to editing. */
+  SB.prototype.rpc = async function (fn, args) {
+    await this.ensureFresh();
+    return this._fetch("/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(args || {})
+    });
+  };
+
   SB.prototype.remove = async function (table, match) {
     await this.ensureFresh();
     return this._fetch("/rest/v1/" + table + "?" + match, {
