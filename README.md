@@ -64,7 +64,11 @@ contains the schema and every policy.
 ```
 index.html         markup
 styles.css         one theme, light and dark
-app.js             the app: Code 128 encoder, label renderer, print path, data layer
+js/core.js         data layer, storage, sign-in
+js/label.js        Code 128 encoder, label renderer, ZPL
+js/lists.js        products, customers, queue, print log
+js/setup.js        label setup, auto-fit, CSV
+js/wiring.js       event wiring and boot
 supabase-lite.js   the slice of Supabase this app uses, hand-written, no CDN
 config.js          project URL and publishable key
 offline/           single-file build for a label PC with no internet
