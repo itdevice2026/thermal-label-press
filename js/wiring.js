@@ -25,6 +25,8 @@ $$(".tabs button").forEach(b => b.addEventListener("click", () => {
   selectTab(b.dataset.tab);
 }));
 
+paintSymOptions();   /* both code-type pickers, from one list */
+
 ["f-name","f-size","f-code","f-batch","f-pd","f-ed","f-copies"].forEach(id =>
   $("#" + id).addEventListener("input", renderPreview));
 

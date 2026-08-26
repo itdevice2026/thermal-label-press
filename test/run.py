@@ -138,6 +138,16 @@ with sync_playwright() as p:
     check("the choice is remembered on the customer",
           pg.evaluate("(customers.find(c=>c.code=='DALI').stock||{}).sym"), "c128")
 
+    # Both pickers are filled from one list; they drifted apart when the markup
+    # held two copies, and the Label setup one silently kept offering two types.
+    pg.click('[data-tab="setup"]'); pg.wait_for_timeout(300)
+    setup_types = pg.eval_on_selector_all("#s-sym option", "o=>o.map(x=>x.value)")
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(300)
+    print_types = pg.eval_on_selector_all("#f-sym option", "o=>o.map(x=>x.value)")
+    check("the Print tab offers every code type", print_types,
+          ["c128","gs1128","ean13","ean8","upca","itf14","qr","qrdl"])
+    check("Label setup offers exactly the same ones", setup_types, print_types)
+
     # ---- every other code type, printed and scanned back ----
     # A retail code is only worth printing if a scanner agrees with it, so each
     # one goes through the whole path: preview, page, PDF, 600 dpi raster, decode.

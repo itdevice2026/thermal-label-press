@@ -202,6 +202,37 @@ const SYM_NAME = {
    the two-dimensional ones are square. */
 const SYM_RETAIL = ["ean13","ean8","upca","itf14"];
 const SYM_2D     = ["qr","qrdl"];
+
+/* The list is built here and painted into both pickers, rather than written
+   out twice in the markup. Two hand-kept copies drifted apart once already —
+   the Print tab gained four code types that Label setup never heard about. */
+const SYM_GROUPS = [
+  ["Bars", [
+    ["c128",   "Code 128 — the bars on the sample label"],
+    ["gs1128", "GS1-128 — Code 128 carrying the dates and batch"],
+    ["ean13",  "EAN-13 — retail checkout"],
+    ["ean8",   "EAN-8 — retail checkout, small packs"],
+    ["upca",   "UPC-A — retail checkout, North America"],
+    ["itf14",  "ITF-14 — shipping cartons"]
+  ]],
+  ["Square", [
+    ["qr",   "QR Code — a square, readable by phone"],
+    ["qrdl", "QR Code · GS1 Digital Link — ready for 2D at the till"]
+  ]]
+];
+function paintSymOptions(){
+  const html = SYM_GROUPS.map(([group, opts]) =>
+    '<optgroup label="' + esc(group) + '">' +
+    opts.map(([v, t]) => '<option value="' + v + '">' + esc(t) + "</option>").join("") +
+    "</optgroup>").join("");
+  ["#f-sym", "#s-sym"].forEach(sel => {
+    const el = $(sel);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = html;
+    el.value = SYM_NAME[cur] ? cur : "c128";
+  });
+}
 const LOG_MAX = 2000;
 
 const store = {

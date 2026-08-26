@@ -127,20 +127,7 @@
           </div>
           <div class="field">
             <label for="f-sym">Code type</label>
-            <select id="f-sym">
-              <optgroup label="Bars">
-                <option value="c128">Code 128 — the bars on the sample label</option>
-                <option value="gs1128">GS1-128 — Code 128 carrying the dates and batch</option>
-                <option value="ean13">EAN-13 — retail checkout</option>
-                <option value="ean8">EAN-8 — retail checkout, small packs</option>
-                <option value="upca">UPC-A — retail checkout, North America</option>
-                <option value="itf14">ITF-14 — shipping cartons</option>
-              </optgroup>
-              <optgroup label="Square">
-                <option value="qr">QR Code — a square, readable by phone</option>
-                <option value="qrdl">QR Code · GS1 Digital Link — ready for 2D at the till</option>
-              </optgroup>
-            </select>
+            <select id="f-sym"></select>
             <span class="hint">All of them carry the same number.<span data-admin="1"> Remembered against the customer selected above.</span><span data-op="1"> Used for this run; an administrator sets what a customer normally gets.</span></span>
           </div>
           <div class="field" id="fld-batch">
@@ -418,10 +405,7 @@
           <div class="grid3">
             <div class="field" style="grid-column:span 3">
               <label for="s-sym">Code type</label>
-              <select id="s-sym">
-                <option value="c128">Code 128 — the bars on the sample label</option>
-                <option value="qr">QR Code — a square, readable by phone</option>
-              </select>
+              <select id="s-sym"></select>
             </div>
             <div class="field" id="fld-barmode" style="grid-column:span 3">
               <label for="s-barmode">Sizing method</label>
