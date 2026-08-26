@@ -42,8 +42,12 @@ function renderCatalog(){
     .filter(([p]) => p.status !== "pending")
     .filter(([p]) => !who || !p.cust || p.cust === who);
 
+  /* The barcode number is in the list, not just filled in after choosing: two
+     products can share a name and a pack size, and the number is what tells
+     them apart — better seen before the choice than checked after it. */
   pick.innerHTML = '<option value="">Custom entry</option>' +
-    visible.map(([p,i]) => '<option value="' + i + '">' + esc(p.name + (p.size ? " · " + p.size : "")) + "</option>").join("");
+    visible.map(([p,i]) => '<option value="' + i + '">' +
+      esc(p.name + (p.size ? " · " + p.size : "") + " · " + p.code) + "</option>").join("");
   pick.value = visible.some(([,i]) => String(i) === cur) ? cur : "";
 
   const waiting = catalog.filter(isPending).length;

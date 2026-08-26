@@ -76,7 +76,16 @@ with sync_playwright() as p:
 
     # print → log row in the database, with the operator name
     pg.click('[data-tab="print"]'); pg.evaluate("window.print=()=>{}")
-    pg.select_option("#f-pick", label="AllJoy Chicken Liver · 500g"); pg.wait_for_timeout(300)
+    # the picker names the barcode number, so two products with the same name
+    # and pack size can be told apart before choosing rather than after
+    check("the product list shows the barcode number",
+          pg.eval_on_selector_all("#f-pick option", "o=>o.map(x=>x.textContent)"),
+          ["Custom entry", "AllJoy Chicken Liver · 500g · 39012472"])
+    pg.fill("#f-code", ""); pg.wait_for_timeout(200)
+    pg.select_option("#f-pick", label="AllJoy Chicken Liver · 500g · 39012472"); pg.wait_for_timeout(300)
+    check("choosing one fills the barcode number", pg.input_value("#f-code"), "39012472")
+    check("and the name and pack size with it",
+          [pg.input_value("#f-name"), pg.input_value("#f-size")], ["AllJoy Chicken Liver", "500g"])
     pg.fill("#f-copies","2"); pg.click("#b-print"); pg.wait_for_timeout(600)
     check("log written", pg.evaluate("__DB.lbl_print_log.length"), 1)
     check("log carries the operator", pg.evaluate("__DB.lbl_print_log[0].by_name"), "Nomer Santos")
