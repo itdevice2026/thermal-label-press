@@ -294,6 +294,61 @@ function renderQueue(){
 }
 
 /* ============================================================
+   Activity
+   The trail an administrator reads. What is shown is filtered here; what may
+   be read at all is decided by the database, which returns nothing to anyone
+   who is not an administrator.
+   ============================================================ */
+const TRAIL_TONE = {
+  "deleted product":"bad", "deleted customer":"bad", "removed access":"bad",
+  "rejected product":"bad", "rejected customer":"bad", "cleared the print log":"bad",
+  "approved product":"good", "approved customer":"good",
+  "created account":"good", "granted access":"good",
+  "signed in":"quiet"
+};
+function trailWhen(iso){
+  const d = new Date(iso);
+  if (isNaN(d)) return iso || "";
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const time = d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+  return sameDay ? "Today " + time
+                 : d.toLocaleDateString([], { day:"2-digit", month:"short" }) + " " + time;
+}
+function trailVisible(){
+  const q    = ($("#trail-q")    ? $("#trail-q").value    : "").trim().toLowerCase();
+  const kind = ($("#trail-kind") ? $("#trail-kind").value : "");
+  return trailRows.filter(r => {
+    if (kind && r.entity !== kind) return false;
+    if (!q) return true;
+    return (r.who + " " + r.action + " " + r.entity + " " + r.name + " " + r.detail)
+      .toLowerCase().indexOf(q) >= 0;
+  });
+}
+function renderTrail(){
+  const body = $("#trail-body");
+  if (!body) return;
+  const rows = trailVisible();
+  const count = $("#trail-count");
+  if (count){
+    count.textContent = rows.length === trailRows.length
+      ? trailRows.length + (trailRows.length === 1 ? " entry" : " entries")
+      : rows.length + " of " + trailRows.length;
+  }
+  body.innerHTML = rows.length ? rows.map(r =>
+    '<tr><td class="mono nowrap">' + esc(trailWhen(r.at)) + "</td><td>" + esc(r.who) +
+    '</td><td><span class="deed ' + (TRAIL_TONE[r.action] || "") + '">' + esc(r.action) + "</span></td><td>" +
+    (r.name ? esc(r.name) : '<span class="quietTxt">' + esc(r.entity || "\u2014") + "</span>") +
+    '</td><td class="quietTxt">' + esc(r.detail) + "</td></tr>").join("")
+    : '<tr><td colspan="5" class="empty">' +
+      (trailRows.length ? "Nothing matches that." : "Nothing recorded yet.") + "</td></tr>";
+}
+function trailCSV(){
+  return csvRows(["when","who","action","kind","item","detail"],
+    trailVisible().map(r => [r.at, r.who, r.action, r.entity, r.name, r.detail]));
+}
+
+/* ============================================================
    Printing
    ============================================================ */
 /* A run can mix customers, so each label carries its own stock size onto its own page. */

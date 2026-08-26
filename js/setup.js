@@ -66,6 +66,19 @@ function saveActive(){
   }
   db.saveHouse().catch(dbErr);
   paintScope();
+  trailStock();
+}
+
+/* Label setup saves on every keystroke, so one entry per stroke would bury the
+   trail. Wait for the typing to stop, then record what it ended up as. */
+let stockTrailTimer = null;
+function trailStock(){
+  clearTimeout(stockTrailTimer);
+  stockTrailTimer = setTimeout(() => {
+    const co = custById(editingScope());
+    trail("changed label setup", "stock", co ? co.name : "house default",
+          cfg.w + " \u00d7 " + cfg.h + " mm \u00b7 " + (SYM_NAME[cfg.sym] || cfg.sym));
+  }, 4000);
 }
 
 /* Adopt the stock of whichever customer is selected. */
@@ -214,6 +227,8 @@ async function importCSV(text){
     }
   } catch (e){ dbErr(e); }
   renderCustomers();
+  trail("imported products", "product", "", added + " added, " + updated + " updated" +
+        (newCo ? ", " + newCo + " new customer" + (newCo === 1 ? "" : "s") : ""));
   toast(added + " added, " + updated + " updated" +
         (newCo ? ", " + newCo + " new customer" + (newCo === 1 ? "" : "s") : "") +
         (skipped ? ", " + skipped + " skipped (no customer)" : ""));
@@ -252,6 +267,7 @@ async function importCustomersCSV(text){
     }
   } catch (e){ dbErr(e); }
   renderCustomers();
+  trail("imported customers", "customer", "", added + " added, " + updated + " updated");
   toast(added + " added, " + updated + " updated");
 }
 async function download(name, text, type){

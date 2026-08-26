@@ -402,6 +402,24 @@ with sync_playwright() as p:
     check("so the stock is untouched",
           pg.evaluate("JSON.stringify((__DB.lbl_customers.find(c=>c.code=='DALI')||{}).stock||{})"), stock_before)
 
+    # ---- the activity trail ----
+    # An operator must not be able to read it, add to it under someone else's
+    # name, or change what is already there.
+    check("an operator has no Activity tab",
+          pg.eval_on_selector_all(".tabs button", "e=>e.filter(x=>x.offsetParent!==null).map(x=>x.textContent.trim())"),
+          ["Print","Products","Customers","Print log"])
+    check("an operator reads nothing from it",
+          pg.evaluate("(async()=>{try{return (await db.loadTrail()).length}catch(e){return 'refused'}})()"), 0)
+    check("and cannot write to it directly", pg.evaluate(
+        "(async()=>{try{await sb.insert('lbl_activity',[{actor_id:me.id,actor_name:'Nomer Santos',action:'forged'}]);return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+        "blocked")
+    check("nor change what is there", pg.evaluate(
+        "(async()=>{try{await sb.update('lbl_activity','id=gt.0',{action:'tampered'});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+        "blocked")
+    check("nor delete it", pg.evaluate(
+        "(async()=>{try{await sb.remove('lbl_activity','id=gt.0');return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+        "blocked")
+
     # ---- operator proposes; admin approves ----
     pg.click('[data-tab="products"]'); pg.wait_for_timeout(400)
     check("operator can reach Products", pg.is_visible("#b-add"), True)
@@ -471,6 +489,45 @@ with sync_playwright() as p:
     # session survives reload
     pg.reload(); pg.wait_for_timeout(1000)
     check("session survives reload", pg.inner_text("#who-name"), "Rosa dela Cruz")
+
+    # ---- what an administrator sees in the trail ----
+    pg.click("#b-signout"); pg.wait_for_timeout(600)
+    pg.fill("#li-email","nomer@meatplus.ph"); pg.fill("#li-pass","labelpress1")
+    pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
+    pg.click('[data-tab="trail"]'); pg.wait_for_timeout(700)
+    rows = pg.evaluate("trailRows.map(r => r.who + ' | ' + r.action + ' | ' + r.name)")
+    print("   trail:", "\n          ".join(rows[:12]))
+    actions = {r.split(" | ")[1] for r in rows}
+    for want in ("signed in", "added product", "added customer", "proposed product",
+                 "approved product", "created account", "rejected customer"):
+        check("the trail recorded: " + want, want in actions, True)
+    check("an operator's proposal is filed under their own name",
+          any(r.startswith("Rosa dela Cruz | proposed product") for r in rows), True)
+    check("the approval is filed under the administrator's",
+          any(r.startswith("Nomer Santos | approved product") for r in rows), True)
+    check("printing is not duplicated here", "printed" in actions, False)
+
+    # it is a view, not a store: filtering never loses a row
+    before = pg.evaluate("trailRows.length")
+    pg.select_option("#trail-kind", "product"); pg.wait_for_timeout(300)
+    only_products = pg.evaluate("document.querySelectorAll('#trail-body tr').length")
+    check("filtering by kind narrows the list", only_products < before, True)
+    pg.select_option("#trail-kind", ""); pg.fill("#trail-q", "Rosa"); pg.wait_for_timeout(300)
+    # the search covers every column, so an approval that says "proposed by Rosa"
+    # matches even though an administrator filed it — that is the point of it
+    check("searching a name narrows it too", pg.evaluate(
+        "(rows => rows.length > 0 && rows.length < trailRows.length && rows.every(r => /Rosa/.test(r.textContent)))"
+        "([...document.querySelectorAll('#trail-body tr')])"), True)
+    pg.fill("#trail-q", ""); pg.wait_for_timeout(300)
+    check("clearing the search brings them all back", pg.evaluate("trailRows.length"), before)
+
+    # even an administrator may not rewrite it
+    check("an administrator cannot change the trail either", pg.evaluate(
+        "(async()=>{try{await sb.update('lbl_activity','id=gt.0',{action:'tampered'});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+        "blocked")
+    check("nor delete from it", pg.evaluate(
+        "(async()=>{try{await sb.remove('lbl_activity','id=gt.0');return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+        "blocked")
     pg.screenshot(path="/home/claude/repo/test/shot-operator.png", full_page=True)
     b.close()
 

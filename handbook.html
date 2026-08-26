@@ -251,7 +251,6 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
   .mast-in{padding:0 0 14pt}
   a{color:#000;text-decoration:none}
 }
-
 /* ---------- the strip that ties it back to the app ---------- */
 .tools{
   position:sticky;top:0;z-index:40;
@@ -327,6 +326,7 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
       <li><a href="#s8">Which code type</a></li>
       <li><a href="#s9">Getting it on paper</a></li>
       <li><a href="#s10">The print log</a></li>
+      <li><a href="#s11b">The activity trail</a></li>
       <li><a href="#s11">Accounts</a></li>
       <li><a href="#s12">When it looks wrong</a></li>
     </ol>
@@ -366,6 +366,7 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
           <tr><td>Import a CSV of products or customers</td><td>No</td><td>Yes</td></tr>
           <tr><td>Change label sizes and code types</td><td>No</td><td>Yes</td></tr>
           <tr><td>Create accounts and set roles</td><td>No</td><td>Yes</td></tr>
+          <tr><td>See the activity trail &mdash; who changed what</td><td>No</td><td>Yes</td></tr>
         </tbody>
       </table>
     </div>
@@ -667,8 +668,49 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
   </section>
 
   <!-- 11 -->
+  <section id="s11b">
+    <h2><span class="n">11</span> The activity trail <span class="who admin">Administrators</span></h2>
+    <p class="sub">Who did what, and when. The print log answers &ldquo;what did we print?&rdquo;;
+      this answers &ldquo;who changed that?&rdquo;</p>
+
+    <p>The <b>Activity</b> tab lists every change anybody makes: sign-ins, products and customers
+      added, edited, deleted, approved or rejected, CSV imports, label setup changes, accounts
+      created, roles changed, access removed &mdash; and the print log being cleared.</p>
+
+    <ul class="plain">
+      <li><b>Search</b> across every column at once &mdash; a person&rsquo;s name, a product, a barcode
+        number, an action.</li>
+      <li><b>Filter by kind</b> to see only sign-ins, only products, only accounts, and so on.</li>
+      <li><b>Export CSV</b> takes out whatever is currently on screen, filters and all.</li>
+      <li>The most recent <b>500 entries</b> are shown.</li>
+    </ul>
+
+    <div class="note good">
+      <p><b>It cannot be edited or deleted &mdash; by anyone.</b> The database has no rule that permits
+        changing or removing a row of the trail, not even for an administrator, and entries can only
+        be filed through a function that takes the name from whoever is signed in. So nobody can
+        write an entry under someone else&rsquo;s name, tidy away something awkward, or quietly rewrite
+        what happened.</p>
+    </div>
+
+    <div class="note">
+      <p><b>Operators cannot see it at all.</b> The tab is not shown to them, and the database
+        returns them nothing even if they go looking. That is deliberate: people behave differently
+        when they think their colleagues are watching them, and this is a management record.</p>
+      <p><b>Printing is not listed here.</b> Every print run is on the <b>Print log</b> tab, with the
+        same &ldquo;who and when&rdquo;. Repeating it in both places would bury everything else.</p>
+    </div>
+
+    <h3>What it is actually for</h3>
+    <p>Three questions it answers quickly: <b>who changed this product&rsquo;s barcode number, and
+      when?</b> &mdash; <b>who gave that person administrator access?</b> &mdash; and, after a bad run,
+      <b>did the label setup change just before it?</b> Filter by kind, or search the product name,
+      and read down.</p>
+  </section>
+
+  <!-- 12 -->
   <section id="s11">
-    <h2><span class="n">11</span> Accounts <span class="who admin">Administrators</span></h2>
+    <h2><span class="n">12</span> Accounts <span class="who admin">Administrators</span></h2>
     <p class="sub">The Users tab. Names here are the names that appear in the print log, so put
       in real ones.</p>
     <ol class="steps">
@@ -693,9 +735,9 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
     </ul>
   </section>
 
-  <!-- 12 -->
+  <!-- 13 -->
   <section id="s12">
-    <h2><span class="n">12</span> When it looks wrong <span class="who all">Everyone</span></h2>
+    <h2><span class="n">13</span> When it looks wrong <span class="who all">Everyone</span></h2>
     <div class="scroll">
       <table>
         <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
@@ -739,6 +781,11 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
             <td><b>The printed barcode will not scan</b> but the preview was green</td>
             <td>Almost always the print dialog scaling. After that, check printer darkness and
               that the label stock is seated properly.</td>
+          </tr>
+          <tr>
+            <td><b>You need to know who changed something</b></td>
+            <td>Administrators have an <b>Activity</b> tab. Search the product or the person&rsquo;s
+              name. Nothing on it can be edited or deleted, so what it says is what happened.</td>
           </tr>
           <tr>
             <td><b>Someone else's change is not showing</b></td>

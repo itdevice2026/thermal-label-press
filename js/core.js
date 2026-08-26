@@ -31,6 +31,9 @@ function dbErr(e){
    render function is unchanged. These functions are the only place that
    knows about tables and columns.
    ============================================================ */
+/* Reads better at the call site than db.trail(...) does. */
+function trail(action, entity, name, detail){ return db.trail(action, entity, name, detail); }
+
 const db = {
   async loadAll(){
     const [cus, prods, log, settings] = await Promise.all([
@@ -133,6 +136,21 @@ const db = {
   removeProfile(id){ return sb.remove("lbl_profiles", "id=eq." + id); },
   touch(){ return sb.rpc("lbl_touch"); },
 
+  /* The trail. lbl_log() is security definer and takes the actor from the
+     session, so the page cannot file an entry under anybody else's name — and
+     there is no insert policy on the table, so this is the only way in.
+     A failure here is swallowed on purpose: an audit write must never be the
+     reason a label does not get printed. */
+  trail(action, entity, name, detail){
+    return sb.rpc("lbl_log", {
+      p_action: String(action || ""), p_entity: String(entity || ""),
+      p_name: String(name || ""),     p_detail: String(detail || "")
+    }).catch(() => {});
+  },
+  /* id breaks the tie: several entries can share a timestamp, and a trail that
+     reorders itself between refreshes is hard to trust. */
+  loadTrail(){ return sb.select("lbl_activity", "select=*&order=at.desc,id.desc&limit=500"); },
+
   /* Making a login, changing a password and taking access away all need more
      privilege than a browser may hold, so they go through the lbl-users
      function, which checks the caller is an administrator before acting. */
@@ -201,6 +219,7 @@ async function afterSignIn(){
   hideGate();
   applyRole();
   db.touch().catch(() => {});      /* the Users tab shows when each person was last here */
+  trail("signed in", "session");
   await bootData();
 }
 
@@ -236,7 +255,24 @@ function applyRole(){
 function selectTab(name){
   $$(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x.dataset.tab === name)));
   $$(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + name));
+  /* The trail can run to hundreds of rows and only an administrator may read
+     it, so it is fetched when the tab is opened rather than at sign-in. */
+  if (name === "trail" && isAdmin()) refreshTrail();
   renderPreview();
+}
+
+let trailRows = [];
+async function refreshTrail(){
+  const el = $("#trail-body");
+  if (el && !trailRows.length) el.innerHTML = '<tr><td colspan="5" class="empty">Loading\u2026</td></tr>';
+  try {
+    const rows = await db.loadTrail();
+    trailRows = (rows || []).map(r => ({
+      at: r.at, who: r.actor_name || "\u2014", action: r.action,
+      entity: r.entity || "", name: r.entity_name || "", detail: r.detail || ""
+    }));
+    renderTrail();
+  } catch (err){ dbErr(err); }
 }
 
 function gateBusy(form, on, label){
@@ -407,12 +443,18 @@ $("#b-uadd").addEventListener("click", async () => {
   msg.textContent = editingUser ? "Saving…" : "Creating the account…";
   try {
     if (editingUser){
+      const was = profiles.find(x => x.id === editingUser) || {};
       await db.setName(editingUser, name);
       await db.setRole(editingUser, role);
       if (p1) await db.admin("password", { id: editingUser, password: p1 });
+      trail("changed account", "account", name,
+            [was.role !== role ? "role " + (was.role || "?") + " to " + role : "",
+             was.name !== name ? "renamed from " + (was.name || "?") : "",
+             p1 ? "password reset" : ""].filter(Boolean).join(" · ") || "no change");
       toast("User updated");
     } else {
       const out = await db.admin("create", { name, email: user, password: p1, role });
+      trail(out.adopted ? "granted access" : "created account", "account", name, user + " · " + role);
       toast(out.adopted ? user + " already had a login — access granted" : "Added " + name);
     }
     clearUserForm();
@@ -437,6 +479,7 @@ $("#usr-body").addEventListener("click", async e => {
                "Their Meatplus login stays as it is — this only takes away the label app.")) return;
   try {
     await db.admin("revoke", { id: p.id });
+    trail("removed access", "account", p.name || p.email, "was " + (p.role || "?"));
     if (editingUser === p.id) clearUserForm();
     toast("Access removed");
     await refreshProfiles();

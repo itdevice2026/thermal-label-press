@@ -14,7 +14,8 @@
     lbl_customers: [],
     lbl_products: [],
     lbl_print_log: [],
-    lbl_settings: []
+    lbl_settings: [],
+    lbl_activity: []
   };
   let seq = 0;
   const uid = () => "id-" + (++seq).toString().padStart(4, "0");
@@ -65,7 +66,27 @@
   P.user = function(){ return this.session && this.session.user; };
   P.ensureFresh = async function(){ return this.session; };
 
-  P.rpc = async function(fn){
+  P.rpc = async function(fn, args){
+    /* The trail: there is no insert policy on the table, so this function is
+       the only way in, and it takes the actor from the session rather than
+       from the caller — mirroring lbl_log() on the server. */
+    if (fn === "lbl_log"){
+      const r = role(this);
+      if (r !== "admin" && r !== "operator") return null;   /* pending: nothing to record */
+      const u = this.user();
+      const p = DB.lbl_profiles.find(x => x.id === u.id) || {};
+      DB.lbl_activity.push({
+        id: DB.lbl_activity.length + 1,
+        at: new Date().toISOString(),
+        actor_id: u.id, actor_name: p.name || "",
+        action: String((args && args.p_action) || "").slice(0, 40),
+        entity: String((args && args.p_entity) || "").slice(0, 40),
+        entity_name: String((args && args.p_name) || "").slice(0, 160),
+        detail: String((args && args.p_detail) || "").slice(0, 400)
+      });
+      persist();
+      return null;
+    }
     if (fn === "lbl_touch"){
       const u = this.user();
       const p = u && DB.lbl_profiles.find(x => x.id === u.id);
@@ -126,6 +147,13 @@
       return m ? rows.filter(r => r.id === m[1]) : rows;
     }
     const r = role(this);
+    if (tbl === "lbl_activity"){
+      if (r !== "admin") return [];                        /* the trail is administrators only */
+      const rows = table(tbl).slice().sort((a,b) =>
+        (b.at || "").localeCompare(a.at || "") || (b.id - a.id));
+      const m = /limit=(\d+)/.exec(q);
+      return m ? rows.slice(0, +m[1]) : rows;
+    }
     if (r !== "admin" && r !== "operator") return [];      /* pending / signed out see nothing */
     let rows = table(tbl).slice();
     const m = /id=eq\.([^&]+)/.exec(q);
@@ -136,6 +164,8 @@
   };
 
   P.insert = async function(tbl, rows){
+    /* the trail has no policy for this — not even for an administrator */
+    if (tbl === "lbl_activity"){ const e = new Error("permission denied for lbl_activity"); e.status = 401; throw e; }
     /* Operators may propose a product or customer, but only as pending and
        only under their own name — mirrors the row-level policies. */
     if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
@@ -178,6 +208,8 @@
   };
 
   P.update = async function(tbl, match, patch){
+    /* the trail has no policy for this — not even for an administrator */
+    if (tbl === "lbl_activity"){ const e = new Error("permission denied for lbl_activity"); e.status = 401; throw e; }
     if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
       const u = this.user();
       const rows = table(tbl).filter(r => matches(r, match));
@@ -200,6 +232,8 @@
   };
 
   P.remove = async function(tbl, match){
+    /* the trail has no policy for this — not even for an administrator */
+    if (tbl === "lbl_activity"){ const e = new Error("permission denied for lbl_activity"); e.status = 401; throw e; }
     if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
       const u = this.user();
       const rows = table(tbl).filter(r => matches(r, match));

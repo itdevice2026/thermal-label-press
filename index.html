@@ -31,6 +31,7 @@
     <button role="tab" aria-selected="false" data-tab="products">Products <span class="badge" id="pend-prod" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="customers">Customers <span class="badge" id="pend-cust" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="log">Print log</button>
+    <button role="tab" aria-selected="false" data-tab="trail" data-admin="1">Activity</button>
     <button role="tab" aria-selected="false" data-tab="setup" data-admin="1">Label setup</button>
     <button role="tab" aria-selected="false" data-tab="users" data-admin="1">Users</button>
   </nav>
@@ -344,6 +345,38 @@
 </section>
 
 <!-- ============ PRINT LOG ============ -->
+<!-- ============ ACTIVITY ============ -->
+<section class="panel" id="p-trail">
+  <div class="card">
+    <h2>Activity <span class="count" id="trail-count"></span></h2>
+    <div class="body row" style="border-bottom:1px solid var(--line-2)">
+      <input type="text" id="trail-q" placeholder="Search a name, an item, an action&hellip;" style="max-width:280px">
+      <select id="trail-kind" style="max-width:190px">
+        <option value="">Everything</option>
+        <option value="session">Sign-ins</option>
+        <option value="product">Products</option>
+        <option value="customer">Customers</option>
+        <option value="stock">Label setup</option>
+        <option value="account">Accounts</option>
+        <option value="print log">The print log</option>
+      </select>
+      <button class="btn ghost tiny" id="b-trefresh">Refresh</button>
+    </div>
+    <div class="tblWrap">
+      <table>
+        <thead><tr><th>When</th><th>Who</th><th>Did what</th><th>To what</th><th>Detail</th></tr></thead>
+        <tbody id="trail-body"></tbody>
+      </table>
+    </div>
+    <div class="body row" style="border-top:1px solid var(--line-2)">
+      <button class="btn" id="b-texport">Export CSV</button>
+      <span class="hint">Administrators only. The database refuses to change or delete a row of this
+        once it is written &mdash; including for administrators &mdash; so it can be relied on. Printing is not
+        listed here; every run is on the Print log tab. The most recent 500 entries are shown.</span>
+    </div>
+  </div>
+</section>
+
 <section class="panel" id="p-log">
   <div class="card">
     <h2>Print log <span class="count" id="log-count"></span></h2>

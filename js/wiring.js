@@ -59,7 +59,11 @@ $("#b-save").addEventListener("click", () => {
     : { name:d.name, size:d.size, code:d.code, cust };
   if (hit < 0) catalog.push(row);
   renderCatalog();
-  db.saveProduct(row).then(() => toast(hit >= 0 ? "Product updated" : "Product saved")).catch(dbErr);
+  db.saveProduct(row).then(() => {
+    trail(isAdmin() ? (hit >= 0 ? "edited product" : "added product") : "proposed product",
+          "product", row.name, row.code + (row.size ? " · " + row.size : ""));
+    toast(hit >= 0 ? "Product updated" : "Product saved");
+  }).catch(dbErr);
 });
 
 $("#b-add").addEventListener("click", () => {
@@ -86,6 +90,8 @@ $("#b-add").addEventListener("click", () => {
   renderCatalog();
   db.saveProduct(row).then(() => {
     renderCatalog();
+    trail(isAdmin() ? (editing ? "edited product" : "added product") : "proposed product",
+          "product", name, code + (size ? " · " + size : ""));
     toast(isAdmin() ? (editing ? "Updated " : "Added ") + name
                     : name + " sent for approval");
   }).catch(dbErr);
@@ -114,6 +120,8 @@ $("#b-cadd").addEventListener("click", () => {
   clearCustomerForm(); renderCustomers(); adoptProfile();
   db.saveCustomer(co).then(() => {
     renderCustomers();
+    trail(isAdmin() ? (editing ? "edited customer" : "added customer") : "proposed customer",
+          "customer", co.name, co.code || "");
     toast(isAdmin() ? (editing ? "Customer updated" : "Added " + co.name)
                     : co.name + " sent for approval");
   }).catch(dbErr);
@@ -143,6 +151,7 @@ $("#cus-body").addEventListener("click", async e => {
     ok.disabled = true;
     try {
       await db.approveCustomer(c);
+      trail("approved customer", "customer", c.name, "proposed by " + (submitterName(c).replace(/<[^>]*>/g, "") || "someone"));
       c.status = "approved";
       renderCustomers(); adoptProfile();
       toast("Approved " + c.name);
@@ -167,6 +176,7 @@ $("#cus-body").addEventListener("click", async e => {
   }
   if (del){
     const c = customers[+del.dataset.cdel];
+    const pend = isPending(c);
     const n = catalog.filter(p => p.cust === c.id).length;
     if (n) return void ($("#cus-msg").textContent =
       "Move or delete this customer’s " + n + " product" + (n === 1 ? "" : "s") + " first.");
@@ -174,7 +184,10 @@ $("#cus-body").addEventListener("click", async e => {
     if (editingCustomer === c.id) clearCustomerForm();
     if ($("#f-cust").value === c.id) $("#f-cust").value = "";
     renderCustomers();
-    db.deleteCustomer(c).then(() => toast("Removed " + c.name)).catch(dbErr);
+    db.deleteCustomer(c).then(() => {
+      trail(pend ? "rejected customer" : "deleted customer", "customer", c.name, c.code || "");
+      toast(pend ? "Rejected " + c.name : "Removed " + c.name);
+    }).catch(dbErr);
   }
 });
 
@@ -187,13 +200,23 @@ $("#c-file").addEventListener("change", e => {
   r.readAsText(f); e.target.value = "";
 });
 
+/* ---- activity ---- */
+$("#b-trefresh").addEventListener("click", refreshTrail);
+$("#trail-q").addEventListener("input", renderTrail);
+$("#trail-kind").addEventListener("change", renderTrail);
+$("#b-texport").addEventListener("click", () => download("activity.csv", trailCSV(), "text/csv"));
+
 /* ---- log ---- */
 $("#b-lexport").addEventListener("click", () => download("print-log.csv", logCSV(), "text/csv"));
 $("#b-lclear").addEventListener("click", () => {
   if (!isAdmin()) return;
   if (!confirm("Clear the whole print log for everyone? This cannot be undone.")) return;
+  const had = logbook.length;
   logbook = []; renderLog();
-  db.clearLog().then(() => toast("Log cleared")).catch(dbErr);
+  db.clearLog().then(() => {
+    trail("cleared the print log", "print log", "", had + " row" + (had === 1 ? "" : "s"));
+    toast("Log cleared");
+  }).catch(dbErr);
 });
 
 $("#cat-body").addEventListener("change", e => {
@@ -214,6 +237,7 @@ $("#cat-body").addEventListener("click", async e => {
     ok.disabled = true;
     try {
       await db.approveProduct(p);
+      trail("approved product", "product", p.name, "proposed by " + (submitterName(p).replace(/<[^>]*>/g, "") || "someone"));
       p.status = "approved";
       renderCatalog();
       toast("Approved " + p.name);
@@ -236,7 +260,11 @@ $("#cat-body").addEventListener("click", async e => {
     catalog.splice(i,1);
     if (editingProduct === p.code) clearProductForm();
     renderCatalog();
-    db.deleteProduct(p).then(() => toast("Removed " + p.name)).catch(dbErr);
+    const pend = isPending(p);
+    db.deleteProduct(p).then(() => {
+      trail(pend ? "rejected product" : "deleted product", "product", p.name, p.code || "");
+      toast(pend ? "Rejected " + p.name : "Removed " + p.name);
+    }).catch(dbErr);
   }
 });
 
