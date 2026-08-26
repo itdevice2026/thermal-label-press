@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label Press Handbook &mdash; Thermal Label Press</title>
+<meta name="description" content="How to print a correct label on the Thermal Label Press, and what to do when the screen says something is wrong.">
+<meta name="theme-color" content="#0F5C63">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect width='22' height='22' rx='4' fill='%230F5C63'/%3E%3Cg fill='white'%3E%3Crect x='4.5' y='5' width='1.6' height='12'/%3E%3Crect x='7.2' y='5' width='0.9' height='12'/%3E%3Crect x='9.2' y='5' width='2' height='12'/%3E%3Crect x='12.2' y='5' width='0.9' height='12'/%3E%3Crect x='14.2' y='5' width='1.3' height='12'/%3E%3Crect x='16.6' y='5' width='1.6' height='12'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+:root{
+  --ground:#EEF1F0;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F6;
+  --ink:#14191B;
+  --ink-2:#4C585E;
+  --ink-3:#7E8C92;
+  --line:#D5DCDA;
+  --line-2:#E6EBEA;
+  --accent:#0F5C63;
+  --accent-soft:#DBEAEA;
+  --good:#2C6A4B;
+  --good-soft:#DDEBE3;
+  --warn:#8A5A0B;
+  --warn-soft:#F6E9D2;
+  --bad:#9E3B30;
+  --bad-soft:#F6E1DE;
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1213;
+    --surface:#161D1E;
+    --surface-2:#1D2627;
+    --ink:#E7ECEB;
+    --ink-2:#A6B3B4;
+    --ink-3:#7A8889;
+    --line:#2A3536;
+    --line-2:#212B2C;
+    --accent:#57B6B9;
+    --accent-soft:#15393A;
+    --good:#79C79C;
+    --good-soft:#173324;
+    --warn:#DFB169;
+    --warn-soft:#33280F;
+    --bad:#E28A7E;
+    --bad-soft:#3A1E1A;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1213;
+  --surface:#161D1E;
+  --surface-2:#1D2627;
+  --ink:#E7ECEB;
+  --ink-2:#A6B3B4;
+  --ink-3:#7A8889;
+  --line:#2A3536;
+  --line-2:#212B2C;
+  --accent:#57B6B9;
+  --accent-soft:#15393A;
+  --good:#79C79C;
+  --good-soft:#173324;
+  --warn:#DFB169;
+  --warn-soft:#33280F;
+  --bad:#E28A7E;
+  --bad-soft:#3A1E1A;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+/* ---------- masthead ---------- */
+.mast{
+  border-bottom:1px solid var(--line);
+  background:var(--surface);
+}
+.mast-in{
+  max-width:1140px;margin:0 auto;padding:34px 28px 30px;
+  display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;justify-content:space-between;
+}
+.mast h1{
+  font-family:var(--cond);font-weight:700;font-size:clamp(30px,5vw,46px);
+  line-height:1.02;letter-spacing:-.015em;margin:0;text-wrap:balance;
+}
+.mast .eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 10px;
+}
+.mast .lede{margin:12px 0 0;color:var(--ink-2);max-width:52ch}
+.mast .addr{
+  font-family:var(--mono);font-size:13px;line-height:1.7;
+  border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--ink-2);
+}
+.mast .addr b{display:block;color:var(--ink);font-weight:600;font-size:14px}
+
+/* ---------- shell ---------- */
+.shell{max-width:1140px;margin:0 auto;padding:0 28px 96px;display:grid;gap:44px;
+  grid-template-columns:214px minmax(0,1fr);align-items:start}
+@media (max-width:900px){.shell{grid-template-columns:minmax(0,1fr);gap:0}}
+
+nav.toc{position:sticky;top:24px;padding-top:38px}
+@media (max-width:900px){
+  nav.toc{position:static;padding:26px 0 6px;border-bottom:1px solid var(--line)}
+}
+nav.toc h2{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 12px;font-weight:500;
+}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;counter-reset:t}
+nav.toc a{
+  display:grid;grid-template-columns:26px 1fr;gap:6px;align-items:baseline;
+  padding:5px 8px 5px 4px;border-radius:6px;text-decoration:none;color:var(--ink-2);
+  font-size:14px;line-height:1.35;
+}
+nav.toc a::before{
+  counter-increment:t;content:counter(t,decimal-leading-zero);
+  font-family:var(--mono);font-size:11px;color:var(--ink-3);
+}
+nav.toc a:hover{background:var(--surface);color:var(--ink)}
+
+main{padding-top:38px;min-width:0}
+
+/* ---------- sections ---------- */
+section{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:30px 32px 34px;margin-bottom:22px;scroll-margin-top:20px;
+}
+@media (max-width:620px){section{padding:24px 20px 26px}}
+section > h2{
+  font-family:var(--cond);font-weight:700;font-size:26px;line-height:1.15;
+  margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance;
+  display:flex;flex-wrap:wrap;align-items:center;gap:12px;
+}
+section > h2 .n{
+  font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent);
+  border:1px solid var(--accent);border-radius:5px;padding:2px 7px;letter-spacing:.06em;
+}
+h3{
+  font-family:var(--cond);font-weight:600;font-size:18px;margin:30px 0 8px;
+  letter-spacing:.005em;
+}
+h3:first-of-type{margin-top:22px}
+p{margin:0 0 14px;max-width:68ch}
+p:last-child{margin-bottom:0}
+.sub{color:var(--ink-2);margin:0 0 20px;max-width:68ch}
+
+/* ---------- chips ---------- */
+.who{display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.who.all{background:var(--accent-soft);color:var(--accent)}
+.who.admin{background:var(--warn-soft);color:var(--warn)}
+
+/* ---------- steps ---------- */
+ol.steps{list-style:none;margin:0 0 6px;padding:0 0 0 30px;counter-reset:s;
+  border-left:2px solid var(--line-2);display:flex;flex-direction:column;gap:16px}
+ol.steps > li{position:relative;max-width:66ch}
+ol.steps > li::before{
+  counter-increment:s;content:counter(s);
+  position:absolute;left:-41px;top:1px;width:22px;height:22px;border-radius:50%;
+  background:var(--accent);color:var(--surface);
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  display:grid;place-items:center;
+}
+:root[data-theme="dark"] ol.steps > li::before,
+:root:not([data-theme="light"]) ol.steps > li::before{color:#0D1213}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) ol.steps > li::before{color:#fff}}
+ol.steps b{font-weight:600}
+
+ul.plain{margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:7px;max-width:66ch}
+ul.plain li::marker{color:var(--ink-3)}
+
+/* ---------- field names ---------- */
+/* field names wrap at spaces &#8212; a long one used to push the page sideways */
+.f{font-family:var(--mono);font-size:.87em;background:var(--surface-2);
+  border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;overflow-wrap:break-word}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- callouts ---------- */
+.note{
+  border-radius:9px;padding:13px 16px;margin:18px 0;font-size:15px;max-width:68ch;
+  border:1px solid var(--line);background:var(--surface-2);
+}
+.note.care{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.note.stop{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+.note.good{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.note b{font-family:var(--cond);font-weight:600;font-size:15px}
+.note p{margin:0;max-width:none;color:inherit}
+.note p + p{margin-top:8px}
+
+/* ---------- tables ---------- */
+.scroll{overflow-x:auto;margin:16px 0 6px;border:1px solid var(--line);border-radius:9px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:440px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+thead th{
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);
+  border-bottom:1px solid var(--line);
+}
+tbody tr:last-child td{border-bottom:0}
+td b{font-weight:600}
+
+/* ---------- the label anatomy ---------- */
+.anat{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;
+  margin:22px 0 6px;padding:22px;background:var(--surface-2);border-radius:11px}
+@media (max-width:620px){.anat{grid-template-columns:minmax(0,1fr);gap:18px;justify-items:center}}
+.anat svg{display:block;width:100%;max-width:262px;height:auto}
+.anat ol{list-style:none;margin:0;padding:0;counter-reset:a;
+  display:flex;flex-direction:column;gap:9px;font-size:14.5px}
+.anat li{display:grid;grid-template-columns:21px 1fr;gap:9px;align-items:baseline}
+.anat li::before{
+  counter-increment:a;content:counter(a);
+  width:19px;height:19px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);
+  font-family:var(--mono);font-size:10px;font-weight:600;display:grid;place-items:center;
+}
+
+/* ---------- code ---------- */
+pre{
+  font-family:var(--mono);font-size:13px;line-height:1.65;margin:14px 0;
+  background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;
+  padding:13px 15px;overflow-x:auto;color:var(--ink-2);
+}
+
+footer{
+  max-width:1140px;margin:0 auto;padding:0 28px 70px;color:var(--ink-3);font-size:13.5px;
+}
+footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
+
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- printed on paper, for the wall by the printer ---------- */
+@media print{
+  body{background:#fff;color:#000;font-size:11pt}
+  nav.toc,.mast .addr{display:none}
+  .shell{display:block;padding:0}
+  main{padding:0}
+  section{border:0;border-top:1.5pt solid #000;border-radius:0;padding:14pt 0 0;
+    margin:0 0 16pt;break-inside:avoid}
+  .note,.anat,.scroll,pre{break-inside:avoid}
+  .mast-in{padding:0 0 14pt}
+  a{color:#000;text-decoration:none}
+}
+
+/* ---------- the strip that ties it back to the app ---------- */
+.tools{
+  position:sticky;top:0;z-index:40;
+  background:var(--surface);border-bottom:1px solid var(--line);
+}
+.tools-in{
+  max-width:1140px;margin:0 auto;padding:9px 28px;
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+}
+.tools .back{margin-right:auto}
+.tools a,.tools button{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--sans);font-size:14px;font-weight:500;line-height:1;
+  padding:8px 13px;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--ink);text-decoration:none;cursor:pointer;
+}
+.tools a:hover,.tools button:hover{border-color:var(--ink-3)}
+.tools .primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+:root[data-theme="dark"] .tools .primary,
+:root:not([data-theme="light"]) .tools .primary{color:#0D1213}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .tools .primary{color:#fff}}
+.tools .primary:hover{filter:brightness(1.08);border-color:var(--accent)}
+.tools svg{display:block;flex:0 0 auto}
+@media (max-width:620px){.tools-in{padding:8px 20px}.tools .lbl{display:none}}
+@media print{.tools{display:none}}
+</style>
+</head>
+<body>
+<div class="tools">
+  <div class="tools-in">
+    <a class="back" href="./" title="Back to the label press">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
+      <span>Back to the label press</span>
+    </a>
+    <button type="button" class="primary" id="b-print">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6V2h7v4M4.5 12H3V6h10v6h-1.5M4.5 10h7v4h-7z"/></svg>
+      <span>Print<span class="lbl"> or save as PDF</span></span>
+    </button>
+    <a href="handbook.html" download="Label-Press-Handbook.html">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 13h10"/></svg>
+      <span>Download<span class="lbl"> a copy</span></span>
+    </a>
+  </div>
+</div>
+
+<header class="mast">
+  <div class="mast-in">
+    <div>
+      <p class="eyebrow">Meatplus Trading Corp &#183; Thermal Label Press</p>
+      <h1>Label Press Handbook</h1>
+      <p class="lede">Everything you need to print a correct label, and what to do when the
+        screen tells you something is wrong. Written for the people at the printer.</p>
+    </div>
+    <p class="addr"><b>allcompanylabels.meatplus.ph</b>
+      Works in any browser<br>Sign in with your work email</p>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#s1">Getting in</a></li>
+      <li><a href="#s2">Printing a label</a></li>
+      <li><a href="#s3">Reading the preview</a></li>
+      <li><a href="#s4">Printing a mixed run</a></li>
+      <li><a href="#s5">Products</a></li>
+      <li><a href="#s6">Customers</a></li>
+      <li><a href="#s7">Label setup</a></li>
+      <li><a href="#s8">Which code type</a></li>
+      <li><a href="#s9">Getting it on paper</a></li>
+      <li><a href="#s10">The print log</a></li>
+      <li><a href="#s11">Accounts</a></li>
+      <li><a href="#s12">When it looks wrong</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><span class="n">01</span> Getting in <span class="who all">Everyone</span></h2>
+    <p class="sub">The label press runs in a browser. There is nothing to install, and it works
+      the same on the office PC and on a tablet on the line.</p>
+
+    <ol class="steps">
+      <li>Go to <b>allcompanylabels.meatplus.ph</b>.</li>
+      <li>Sign in with your <b>work email</b> and password.</li>
+      <li>If you have never used it, choose <b>Create one</b>, fill in your name, your
+        <span class="f">@meatplus.ph</span> email and a password.</li>
+    </ol>
+
+    <div class="note">
+      <p><b>&#8220;Waiting for approval&#8221;</b></p>
+      <p>A new account can sign in but sees nothing until an administrator gives it a role.
+        This is normal. Ask an administrator to set you up on the Users tab &#8212; it takes them
+        about ten seconds.</p>
+    </div>
+
+    <h3>What your role lets you do</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>You can</th><th>Operator</th><th>Administrator</th></tr></thead>
+        <tbody>
+          <tr><td>Print labels, and use the queue</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td>See the print log and export it</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td>Propose a new product or customer</td><td>Yes &#8212; held for approval</td><td>Yes &#8212; straight in</td></tr>
+          <tr><td>Approve what someone else proposed</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Import a CSV of products or customers</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Change label sizes and code types</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Create accounts and set roles</td><td>No</td><td>Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Leaving the station</h3>
+    <p><b>Lock</b> (top right) puts the sign-in screen back up but keeps everything where it is &#8212;
+      use it when you step away from a shared machine. <b>Sign out</b> ends the session properly.
+      Every label you print is recorded under your name, so do not let someone else print under yours.</p>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><span class="n">02</span> Printing a label <span class="who all">Everyone</span></h2>
+    <p class="sub">This is the job. Everything else in the handbook exists to make this step correct.</p>
+
+    <ol class="steps">
+      <li><b>Choose the customer.</b> This narrows the product list to that customer's items, loads
+        that customer's label size, and is recorded in the print log. Customer details never
+        appear on the label itself.</li>
+      <li><b>Choose the product.</b> Each entry reads
+        <span class="f">Name &#183; Pack size &#183; Barcode number</span>, so you can tell two similar
+        products apart before you pick. Choosing one fills in all three fields below.
+        Pick <b>Custom entry</b> to type a one-off label instead.</li>
+      <li><b>Check the dates.</b> <b>Today</b> sets the production date. The shelf-life buttons
+        &#8212; <span class="f">+3 mo</span>, <span class="f">+6 mo</span>, <span class="f">+1 yr</span>,
+        <span class="f">+2 yr</span> &#8212; set the expiry from it. You can always type a date instead.</li>
+      <li><b>Enter the batch or lot</b> if the box is showing. It only appears for code types that
+        can carry one, and it goes inside the barcode rather than being printed as text.</li>
+      <li><b>Set the number of copies.</b></li>
+      <li><b>Look at the preview and the message underneath it</b> before you print. Section 3
+        explains what the messages mean.</li>
+      <li><b>Press Print label</b> and check the print dialog &#8212; see section 9.</li>
+    </ol>
+
+    <div class="note care">
+      <p><b>Check the dates every single run.</b> The system remembers your last label, so the
+        production date from yesterday's run is still sitting there this morning. It is the one
+        field nothing else can catch for you.</p>
+    </div>
+
+    <h3>What ends up on the label</h3>
+    <div class="anat">
+      <svg viewBox="0 0 300 190" role="img" aria-label="A label showing the product name, pack size, production and expiry dates, the barcode and the number beneath it">
+        <rect x="2" y="2" width="296" height="186" rx="5" fill="#fff" stroke="#B9C4C2" stroke-width="1.5"/>
+        <text x="150" y="40" text-anchor="middle" font-family="'Courier New',monospace" font-size="18" font-weight="700" fill="#111">AllJoy Chicken Gizzard</text>
+        <text x="150" y="62" text-anchor="middle" font-family="'Courier New',monospace" font-size="18" font-weight="700" fill="#111">250g</text>
+        <text x="150" y="86" text-anchor="middle" font-family="'Courier New',monospace" font-size="17" font-weight="700" fill="#111">PD: Aug 26,2026</text>
+        <text x="150" y="106" text-anchor="middle" font-family="'Courier New',monospace" font-size="17" font-weight="700" fill="#111">ED: Aug 26,2027</text>
+        <g fill="#111">
+          <rect x="76" y="118" width="4" height="42"/><rect x="83" y="118" width="2" height="42"/>
+          <rect x="89" y="118" width="6" height="42"/><rect x="99" y="118" width="2" height="42"/>
+          <rect x="104" y="118" width="4" height="42"/><rect x="112" y="118" width="2" height="42"/>
+          <rect x="118" y="118" width="6" height="42"/><rect x="128" y="118" width="4" height="42"/>
+          <rect x="136" y="118" width="2" height="42"/><rect x="142" y="118" width="6" height="42"/>
+          <rect x="152" y="118" width="2" height="42"/><rect x="157" y="118" width="4" height="42"/>
+          <rect x="165" y="118" width="6" height="42"/><rect x="175" y="118" width="2" height="42"/>
+          <rect x="181" y="118" width="4" height="42"/><rect x="189" y="118" width="2" height="42"/>
+          <rect x="195" y="118" width="6" height="42"/><rect x="205" y="118" width="2" height="42"/>
+          <rect x="211" y="118" width="4" height="42"/><rect x="219" y="118" width="5" height="42"/>
+        </g>
+        <text x="150" y="180" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#111">39012473</text>
+        <g font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="600" fill="#0F5C63">
+          <circle cx="20" cy="34" r="9" fill="none" stroke="#0F5C63" stroke-width="1.5"/><text x="20" y="38" text-anchor="middle">1</text>
+          <circle cx="20" cy="58" r="9" fill="none" stroke="#0F5C63" stroke-width="1.5"/><text x="20" y="62" text-anchor="middle">2</text>
+          <circle cx="20" cy="96" r="9" fill="none" stroke="#0F5C63" stroke-width="1.5"/><text x="20" y="100" text-anchor="middle">3</text>
+          <circle cx="20" cy="139" r="9" fill="none" stroke="#0F5C63" stroke-width="1.5"/><text x="20" y="143" text-anchor="middle">4</text>
+          <circle cx="20" cy="175" r="9" fill="none" stroke="#0F5C63" stroke-width="1.5"/><text x="20" y="179" text-anchor="middle">5</text>
+        </g>
+      </svg>
+      <ol>
+        <li>Product name, from <span class="f">Product name</span></li>
+        <li>Pack size, always on its own line</li>
+        <li>Production and expiry dates</li>
+        <li>The barcode &#8212; the type is set per customer, section 8</li>
+        <li>The number in plain figures, so a person can read it too</li>
+      </ol>
+    </div>
+    <p>The customer's name, contact and address are <b>never</b> printed. They are held with the
+      job so the print log can say who it was for.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><span class="n">03</span> Reading the preview <span class="who all">Everyone</span></h2>
+    <p class="sub">The panel on the right is a true-to-size drawing of what will come out of the
+      printer, plus a line of measurements and a message. Read the message.</p>
+
+    <div class="note good">
+      <p><b>&#10003; Green &#8212; go ahead.</b> The code is encoded correctly and every measurement is inside
+        tolerance for this label stock.</p>
+    </div>
+    <div class="note care">
+      <p><b>&#9651; Amber &#8212; it will probably work, but test one.</b> Usually the bars are getting thin
+        or the code is getting short. Print a single label and scan it before committing to a
+        run of five hundred.</p>
+    </div>
+    <div class="note stop">
+      <p><b>! Red &#8212; do not print this.</b> Either the number cannot be encoded at all, or the
+        content is taller than the label and the top and bottom are being cut off. Section 12
+        lists what to do about each.</p>
+    </div>
+
+    <h3>The measurement line</h3>
+    <p>Underneath the preview: the label size, the code type, the size of the code, the
+      <b>module width</b> (the width of the thinnest bar), the printer resolution, and &#8212; for
+      a QR &#8212; its version and error-correction level.</p>
+    <p>Module width is the number that decides whether a scanner can read your label. Below one
+      printer dot it cannot print evenly at all; below about <span class="num">0.25 mm</span> it
+      gets unreliable. The app watches this for you and says so.</p>
+
+    <h3>&#8220;This barcode carries&#8221;</h3>
+    <p>For a GS1-128 or a Digital Link QR, a small panel lists every field that went into the code,
+      each with its identifier &#8212; the production date, the expiry date, the batch. Check it before
+      a long run: it is the only place you can see that the right dates actually made it in.</p>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><span class="n">04</span> Printing a mixed run <span class="who all">Everyone</span></h2>
+    <p class="sub">The queue lets you print several different products &#8212; even for different
+      customers, on different label sizes &#8212; in one go.</p>
+    <ol class="steps">
+      <li>Set up the first label as usual and press <b>Add to queue</b>.</li>
+      <li>Change the fields for the next one and add that too. Repeat.</li>
+      <li>Adjust the number of copies on any queued line by typing straight into it.</li>
+      <li>Press <b>Print queue</b>. Each label goes onto a page of its own correct size.</li>
+      <li><b>Clear queue</b> empties it when you are done.</li>
+    </ol>
+    <div class="note">
+      <p>A queued line keeps the <b>code type it was queued with</b>. If someone changes a
+        customer's setup while your queue is sitting there, what you queued is still what prints.</p>
+      <p>The queue lives in this browser on this machine. It is not shared, and it does not
+        survive clearing your browser data.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><span class="n">05</span> Products <span class="who all">Everyone</span></h2>
+    <p class="sub">The catalog saves you retyping a name, a pack size and a barcode number every
+      time. Every product belongs to exactly one customer.</p>
+    <ol class="steps">
+      <li>Open <b>Products</b> and fill in the name, pack size, barcode number and customer.</li>
+      <li>Press <b>Add product</b>.</li>
+    </ol>
+    <p>You can also press <b>Save to products</b> on the Print tab to file whatever is currently
+      in the form.</p>
+
+    <h3>If you are an operator</h3>
+    <p>Your new product is saved straight away but marked <b>PENDING</b>, with your name against
+      it. It <b>cannot be printed</b> until an administrator approves it, and it will not appear
+      in the Print tab's product list until then. You can still edit or withdraw your own
+      proposal while it waits.</p>
+
+    <h3>If you are an administrator</h3>
+    <p>A number appears on the <b>Products</b> and <b>Customers</b> tabs showing how many are
+      waiting. Open the tab and press <b>Approve</b> or <b>Reject</b> on each. Approving makes it
+      printable immediately.</p>
+    <p><b>Import CSV</b> brings in a whole list at once &#8212; columns
+      <span class="f">name, size, code, customer</span>. It adds new barcode numbers and updates
+      matching ones. <b>Export CSV</b> takes the list out again, which is how you move a catalog
+      between the online system and an offline station.</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><span class="n">06</span> Customers <span class="who all">Everyone</span></h2>
+    <p class="sub">A customer holds a name and code, optional contact details, an optional logo,
+      and &#8212; importantly &#8212; that customer's label size.</p>
+    <ul class="plain">
+      <li><b>Name and code</b> are all that is required. The code is what shows in brackets in
+        the pickers, e.g. <span class="f">Hard Discount Philippines,Inc. (DALI)</span>.</li>
+      <li><b>The logo</b> is only ever shown on screen, beside the customer's name, so you can see
+        at a glance you have the right one. It is not printed on the label.</li>
+      <li><b>Label width and height</b> give that customer its own stock. Leave them blank and the
+        customer follows the house default.</li>
+      <li>A customer with products against it cannot be deleted until those products are moved or
+        removed.</li>
+    </ul>
+    <p>Operators can propose a new customer; it waits for approval exactly like a product does.</p>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><span class="n">07</span> Label setup <span class="who admin">Administrators</span></h2>
+    <p class="sub">One company at a time. Everything on this tab belongs to whichever company is
+      chosen at the top &#8212; including which code type its labels carry.</p>
+
+    <ol class="steps">
+      <li>Open <b>Label setup</b> and use <b>Whose labels are you setting up?</b> to pick the
+        company. The banner tells you whether it has its own stock or is still following the
+        house default.</li>
+      <li>Set the <b>size preset</b> (or type a width and height), the <b>margin</b>, and the
+        <b>printer resolution</b> to match the stock actually loaded in that printer.</li>
+      <li>Press <b>Auto-fit to stock</b>. This grows the text and the code to the largest size
+        that still fits, then you can adjust by eye.</li>
+      <li>Choose the <b>code type</b> and the measurements that go with it.</li>
+    </ol>
+
+    <div class="note">
+      <p><b>House default versus a company's own.</b> Every company follows the house default
+        until you change something about its stock &#8212; at that moment it gets its own copy, and
+        the banner says so. <b>Clear &#8212; follow house default</b> puts it back.</p>
+      <p>Printer resolution, darkness and print speed belong to the <b>machine</b>, not the
+        company. Changing those does not detach anyone from the house default.</p>
+    </div>
+
+    <div class="note care">
+      <p><b>Auto-fit after you change anything structural.</b> Switching to a code type that needs
+        more room &#8212; a QR, or a GS1-128 carrying dates and a batch &#8212; can push the content past the
+        bottom of the label. The preview will turn red and say so; press Auto-fit and it will
+        resize to fit.</p>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2><span class="n">08</span> Which code type <span class="who admin">Administrators</span></h2>
+    <p class="sub">Set per company, on Label setup. All of them carry the same item number &#8212; what
+      differs is how much else travels with it, and who can read it.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Type</th><th>Use it for</th><th>Number it needs</th></tr></thead>
+        <tbody>
+          <tr><td><b>Code 128</b></td><td>The bars on our original sample label. The default.</td><td>Any number</td></tr>
+          <tr><td><b>GS1-128</b></td><td>The same bars, carrying the production date, expiry date and batch as labelled fields. Best choice for traceability and for receiving at a distribution centre.</td><td>Any number; a real GTIN if you have one</td></tr>
+          <tr><td><b>EAN-13</b></td><td>Scanning at a supermarket checkout.</td><td>12 or 13-digit GTIN</td></tr>
+          <tr><td><b>EAN-8</b></td><td>Checkout, on packs too small for an EAN-13.</td><td>8-digit GTIN-8 from GS1</td></tr>
+          <tr><td><b>UPC-A</b></td><td>Checkout, North American trade.</td><td>11 or 12-digit GTIN</td></tr>
+          <tr><td><b>ITF-14</b></td><td>The outer carton, delivering into a distribution centre. Printed inside a heavy frame so a clipped corner fails instead of misreading.</td><td>13 or 14-digit GTIN</td></tr>
+          <tr><td><b>QR Code</b></td><td>Anything a phone should be able to read.</td><td>Any number</td></tr>
+          <tr><td><b>QR &#183; GS1 Digital Link</b></td><td>A QR that a till can read as a product and a shopper's phone opens as a web page.</td><td>A real GTIN</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note care">
+      <p><b>The retail types need real GTINs from GS1 Philippines.</b> Our own eight-digit works
+        codes are not GTINs. If you enter one, the app will tell you the check digit is wrong and
+        print nothing &#8212; that is the app protecting you, not a fault. A barcode that is one digit
+        out does not fail; it scans cleanly to a number belonging to another company.</p>
+      <p>EAN-8 is the trap: it is also eight digits, so our codes look like they would fit. They
+        will not. EAN-8 numbers have to be allocated by GS1 and end in a check digit.</p>
+    </div>
+
+    <p>If you are unsure, <b>GS1-128</b> is the one worth moving to: it is the same bars we already
+      print, and it means one scan captures the dates and the batch instead of somebody reading
+      them off the label and typing them in.</p>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <h2><span class="n">09</span> Getting it on paper <span class="who all">Everyone</span></h2>
+    <p class="sub">Two ways. Use the first unless someone has set you up for the second.</p>
+
+    <h3>Through the printer driver &#8212; the normal way</h3>
+    <ol class="steps">
+      <li>Press <b>Print label</b> (or <b>Print queue</b>).</li>
+      <li>In the print dialog, choose your <b>Zebra or Godex</b> printer.</li>
+      <li>Set the <b>paper size to the same size as the label</b>.</li>
+      <li>Set <b>scale to 100%</b> &#8212; not &#8220;fit to page&#8221;, which quietly shrinks the barcode until
+        it will not scan.</li>
+      <li>Turn <b>margins off</b>, and turn <b>background graphics on</b> if your browser offers it.</li>
+    </ol>
+    <div class="note">
+      <p>The page size is already built into the label, so a correctly set-up dialog needs no
+        adjusting between runs. Once it is right, it stays right.</p>
+    </div>
+
+    <h3>Direct ZPL &#8212; sharpest bars</h3>
+    <p>Sending ZPL straight to the printer's port skips the driver, and the printer renders the
+      bars at exact dot boundaries. Use <b>Copy ZPL</b> or <b>Download .zpl</b> on the Print tab.
+      The layout matches, but the text comes out in the printer's own built-in font rather than
+      the typewriter face of the sample label.</p>
+    <pre>^XA
+^CI28
+^PW400 ^LL240 ^LH0,0
+^FO10,10^A0N,17,10^FB380,1,0,C,0^FDAllJoy Chicken Gizzard^FS
+^BY3,3.0,80
+^FO40,101^BCN,80,Y,N,N^FD39012473^FS
+^PQ1,0,0,N
+^XZ</pre>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <h2><span class="n">10</span> The print log <span class="who all">Everyone</span></h2>
+    <p class="sub">Every run is recorded automatically. Nobody has to write anything down.</p>
+    <p>Each row holds the date and time, <b>who printed it</b>, the customer, the product, the
+      pack size, the barcode number, the production and expiry dates, and how many labels.</p>
+    <ul class="plain">
+      <li><b>Export CSV</b> gives you the whole log for a spreadsheet &#8212; for a recall trace, a
+        customer query, or a month-end count.</li>
+      <li>Only an administrator can clear the log.</li>
+      <li>The name on each row is whoever was signed in. This is exactly why the Lock button
+        exists: labels printed under your name are your responsibility.</li>
+    </ul>
+  </section>
+
+  <!-- 11 -->
+  <section id="s11">
+    <h2><span class="n">11</span> Accounts <span class="who admin">Administrators</span></h2>
+    <p class="sub">The Users tab. Names here are the names that appear in the print log, so put
+      in real ones.</p>
+    <ol class="steps">
+      <li>Fill in the person's <b>name</b>, their <b>work email</b> as the username, and a
+        <b>role</b>.</li>
+      <li>Set a password and repeat it. Tell them to change it when they first sign in.</li>
+      <li>Press <b>Add a user</b>.</li>
+    </ol>
+    <div class="note">
+      <p><b>Most people here already have a login.</b> Our other Meatplus systems share the same
+        account list, so adding an email that already exists grants that person label access
+        rather than creating a second account. Their existing password keeps working unless you
+        type a new one.</p>
+      <p>For the same reason, removing someone here removes their <b>label access only</b>. It
+        does not delete their login, because that would lock them out of every other system too.</p>
+    </div>
+    <ul class="plain">
+      <li>A username cannot be changed once the account exists.</li>
+      <li>Editing someone and leaving the password boxes empty keeps their current password.</li>
+      <li>You cannot remove your own access.</li>
+      <li><b>Export users CSV</b> gives names, usernames and roles only &#8212; never passwords.</li>
+    </ul>
+  </section>
+
+  <!-- 12 -->
+  <section id="s12">
+    <h2><span class="n">12</span> When it looks wrong <span class="who all">Everyone</span></h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>&#8220;Waiting for approval&#8221;</b> after signing in</td>
+            <td>Your account has no role yet. Ask an administrator to set one on the Users tab.</td>
+          </tr>
+          <tr>
+            <td><b>The product list is empty</b>, or your product is missing from it</td>
+            <td>Check you have the right customer selected &#8212; the list is filtered by it. If it is a
+              new product you added, it may still be <b>PENDING</b> approval; pending items are
+              deliberately kept out of the Print tab.</td>
+          </tr>
+          <tr>
+            <td>Red: <b>&#8220;the top and bottom are being cut off&#8221;</b></td>
+            <td>The content is taller than the label. An administrator should open Label setup for
+              that customer and press <b>Auto-fit to stock</b>.</td>
+          </tr>
+          <tr>
+            <td>Amber: <b>module width is below the rule of thumb</b></td>
+            <td>The bars are getting thin. Print one and scan it. If it fails, an administrator
+              can widen the code, use a bigger label, or shorten what the code carries.</td>
+          </tr>
+          <tr>
+            <td>Red: <b>&#8220;should end in <span class="num">7</span>, not <span class="num">0</span>&#8221;</b></td>
+            <td>A retail code type is on, and the number is not a valid GTIN. Either enter the real
+              GTIN, enter it without the last digit and let the check digit be worked out, or
+              switch that customer back to Code 128.</td>
+          </tr>
+          <tr>
+            <td>Red: <b>&#8220;a Digital Link has to start from a GTIN&#8221;</b></td>
+            <td>Same cause. Use a plain QR or GS1-128 until GS1 has allocated a GTIN.</td>
+          </tr>
+          <tr>
+            <td><b>Labels print at the wrong size</b>, or the barcode is squashed</td>
+            <td>The print dialog. Paper size must match the label, scale must be
+              <b>100%</b> and not &#8220;fit to page&#8221;, margins off.</td>
+          </tr>
+          <tr>
+            <td><b>The printed barcode will not scan</b> but the preview was green</td>
+            <td>Almost always the print dialog scaling. After that, check printer darkness and
+              that the label stock is seated properly.</td>
+          </tr>
+          <tr>
+            <td><b>Someone else's change is not showing</b></td>
+            <td>Press <b>Refresh</b> in the top bar. It reloads products, customers and settings
+              from the database.</td>
+          </tr>
+          <tr>
+            <td><b>The screen looks out of date after an update</b></td>
+            <td>Hold <span class="f">Ctrl</span> and <span class="f">Shift</span> and press
+              <span class="f">R</span> to force a full reload.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note care">
+      <p><b>Before a long run, print one and scan it.</b> Thirty seconds here has saved entire
+        pallets of relabelling. It is the single most useful habit on this system.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="rule">
+    Thermal Label Press &#183; Meatplus Trading Corp &#183; handbook current as of 26 August 2026.
+    Questions, or something in here that does not match what you see on screen, go to IT.
+  </div>
+</footer>
+<script>
+document.getElementById("b-print").addEventListener("click", () => window.print());
+</script>
+</body>
+</html>

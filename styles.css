@@ -146,7 +146,7 @@ input:hover,select:hover{border-color:var(--ink-3)}
   display:inline-flex;align-items:center;justify-content:center;gap:7px;
   padding:9px 15px;border-radius:7px;border:1px solid var(--line);
   background:var(--surface-2);color:var(--ink);font-weight:500;cursor:pointer;
-  white-space:nowrap;
+  white-space:nowrap;text-decoration:none;   /* a link styled as a button is still a button */
 }
 .btn:hover{border-color:var(--ink-3)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}

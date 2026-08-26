@@ -20,6 +20,9 @@ with sync_playwright() as p:
 
     check("app hidden before sign-in", pg.is_visible(".wrap"), False)
     check("sign-in shown", pg.is_visible("#login-panel"), True)
+    # the handbook ships with the app, and is reachable before you have a role
+    check("the handbook is linked from the sign-in card",
+          pg.is_visible('.gateFoot a[href$="handbook.html"]'), True)
 
     # domain guard on sign-up
     pg.click('[data-gate="signup"]'); pg.wait_for_timeout(200)
@@ -32,6 +35,8 @@ with sync_playwright() as p:
     pg.fill("#su-email","nomer@meatplus.ph"); pg.click("#signup-panel button[type=submit]"); pg.wait_for_timeout(800)
     check("first account signed in", pg.is_visible(".wrap"), True)
     check("first account is admin", pg.inner_text("#who-role").lower(), "admin")
+    check("and from the top bar, in a new tab",
+          pg.get_attribute('.who a[href$="handbook.html"]', "target"), "_blank")
 
     # customers + products via the UI
     pg.click('[data-tab="customers"]'); pg.wait_for_timeout(200)
