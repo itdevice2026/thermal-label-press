@@ -254,7 +254,7 @@ with sync_playwright() as p:
     check("queue prints the edited count",
           pg.evaluate("document.querySelectorAll('#sheet .label').length"), 2)
     check("log records the edited count",
-          pg.evaluate("__DB.lbl_print_log[0].copies"), 2)
+          pg.evaluate("__DB.lbl_print_log[__DB.lbl_print_log.length-1].copies"), 2)
     pg.click("#b-clearq"); pg.wait_for_timeout(300)
     check("queue cleared", pg.inner_text("#q-count").lower(), "0 labels")
 
@@ -331,8 +331,10 @@ with sync_playwright() as p:
     pg.fill("#f-name", "AllJoy Chicken Cut Ups"); pg.fill("#f-code", "39012472"); pg.wait_for_timeout(700)
     pg.evaluate("window.print=()=>{}")
     pg.fill("#f-copies", "3"); pg.click("#b-print"); pg.wait_for_timeout(800)
-    check("three labels go out as two rows of two",
-          pg.eval_on_selector_all("#sheet .pageRow", "r=>r.map(x=>x.childElementCount)"), [2, 1])
+    check("three labels go out as two full rows",
+          pg.eval_on_selector_all("#sheet .pageRow", "r=>r.map(x=>x.childElementCount)"), [2, 2])
+    check("and the log counts the label that filled the row",
+          pg.evaluate("__DB.lbl_print_log[__DB.lbl_print_log.length-1].copies"), 4)
     check("the page is the width of the roll, not of one label",
           "size:88mm 33mm" in pg.evaluate("document.getElementById('pageStyle').textContent"), True)
     pg.pdf(path="/home/claude/repo/test/two-up.pdf", prefer_css_page_size=True, print_background=True)
@@ -344,7 +346,7 @@ with sync_playwright() as p:
     scanned = []
     for f in sheets:
         scanned += [b.text for b in zxingcpp.read_barcodes(Image.open(f).convert("RGB"))]
-    check("every label across the pair still scans", scanned, ["39012472\n"] * 3)
+    check("every label across the pair still scans", scanned, ["39012472\n"] * 4)
     # each barcode has to sit in its own half of the web, not across the middle
     im = Image.open(sheets[0]).convert("L")
     mid = im.width // 2

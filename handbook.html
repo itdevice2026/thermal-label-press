@@ -562,7 +562,10 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
       <li>Set the <b>size preset</b> (or type a width and height), the <b>margin</b>, and the
         <b>printer resolution</b> to match the stock actually loaded in that printer.</li>
       <li>Press <b>Auto-fit to stock</b>. This grows the text and the code to the largest size
-        that still fits, then you can adjust by eye.</li>
+        that still fits, then you can adjust by eye. The barcode is taken out to the full printable
+        width, less the clear space a scanner needs on either side &#8212; on a small label that clear
+        space is the only thing standing between the bars and the edge, so do not close it up
+        by hand.</li>
       <li>Choose the <b>code type</b> and the measurements that go with it.</li>
     </ol>
 
@@ -581,8 +584,10 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
         across, the app treats it as one wide label: the wording is centred over the whole web and
         the barcode ends up straddling the perforation. Enter 43, set two across, and the app
         arranges the pair itself.</p>
-      <p>Copies count <em>labels</em>, not rows. Ask for three on two-across stock and the printer
-        feeds two rows &#8212; the fourth position on the second row comes out blank.</p>
+      <p><b>A run is rounded up to fill the row.</b> The printer feeds a whole row at a time and a
+        die cut cannot be un-fed, so asking for three on two-across stock prints <em>four</em> &#8212; the
+        last label is repeated rather than wasting the position beside it. The print log records
+        the four, because four is what came off the roll.</p>
     </div>
 
     <div class="note">

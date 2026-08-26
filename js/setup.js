@@ -122,11 +122,16 @@ function currentEnc(){
    largest size that still fits the label is the one that gets used. */
 function fitProfile(p, data){
   p.pad  = Math.max(0.8, Math.round(p.w * 0.026 * 10) / 10);
-  /* The sample label's barcode takes about two thirds of the width. GS1-128 is
-     far longer than a bare number and a retail code carries light margins that
-     count against the same space, so both are given everything there is. */
-  const share = (p.sym === "gs1128" || SYM_RETAIL.indexOf(p.sym) >= 0) ? 1 : R_BARW;
-  p.barw = Math.round(Math.min(p.w * share, p.w - p.pad * 2) * 10) / 10;
+  /* The widest barcode the stock can carry and still scan. A Code 128 needs ten
+     modules of clear space on each side, and that space grows with the bars, so
+     the width that just satisfies it is `usable × n / (n + 20)` — everything
+     left over goes to the code. A retail symbol carries its own light margins
+     inside the SVG, so it takes the whole printable width and no more. */
+  const usable = p.w - p.pad * 2;
+  const enc0 = currentEnc();
+  const n = enc0 ? enc0.modules.length : 101;
+  const share = SYM_RETAIL.indexOf(p.sym) >= 0 ? 1 : n / (n + 2 * R_QUIET);
+  p.barw = Math.round(usable * share * 10) / 10;
   const apply = s => {
     p.title = Math.round(s * 100) / 100;
     p.date  = p.title;

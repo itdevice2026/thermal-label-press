@@ -354,13 +354,15 @@ function trailCSV(){
 /* A run can mix customers, so each label carries its own stock onto its own
    page. On stock that is two or three labels across, a "page" is a row of them:
    the printer sees the whole web, and the labels sit side by side on it with
-   the die-cut gap between. A part-filled last row is normal and unavoidable. */
+   the die-cut gap between. */
 function printLabels(list){
   const sheet = $("#sheet");
   sheet.innerHTML = "";
   const pages = [];                /* distinct page geometry, in order */
   const geom  = {};                /* key -> {w,h,cols,gap} */
   const open  = {};                /* key -> the row still being filled */
+  const last  = {};                /* key -> the line that filled its last position */
+  const extra = new Map();         /* line -> labels added to fill out its row */
   let total = 0;
   list.forEach(d => {
     const prof = profileFor(d.cust);
@@ -380,10 +382,32 @@ function printLabels(list){
         open[key] = row;
       }
       row.appendChild(buildLabel(d, prof).el);
+      last[key] = { d: d, prof: prof };
     }
   });
   if (!total){ toast("Nothing to print"); return; }
-  logPrint(list);
+
+  /* Fill out the last row. The printer feeds a whole row at a time and a die
+     cut cannot be un-fed, so a half-filled row throws away the labels beside
+     it; the ZPL has always printed every column. Repeating the last label
+     makes the paper agree with both the preview and the printer command. */
+  Object.keys(open).forEach(key => {
+    const row = open[key], cols = geom[key].cols, l = last[key];
+    if (!row || !l || cols < 2) return;
+    while (row.childElementCount < cols && total < 500){
+      row.appendChild(buildLabel(l.d, l.prof).el);
+      total++;
+      extra.set(l.d, (extra.get(l.d) || 0) + 1);
+    }
+  });
+  if (extra.size){
+    const added = Array.from(extra.values()).reduce((a, b) => a + b, 0);
+    toast(added === 1 ? "One more label added to fill the row" : added + " more labels added to fill the row");
+  }
+  /* The log records labels produced, so it counts the ones that filled the row. */
+  logPrint(extra.size
+    ? list.map(d => extra.has(d) ? Object.assign({}, d, { copies: d.copies + extra.get(d) }) : d)
+    : list);
   let ps = document.getElementById("pageStyle");
   if (!ps){ ps = document.createElement("style"); ps.id = "pageStyle"; document.head.appendChild(ps); }
   const sizeOf = g => (g.w * g.cols + g.gap * (g.cols - 1)) + "mm " + g.h + "mm";

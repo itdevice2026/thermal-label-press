@@ -335,18 +335,23 @@ function currentLabel(){
 
 /* ---- the printout's proportions, measured off the reference label ----
    text lines share one size and one pitch; the barcode is 3.94 text-heights tall
-   and 0.65 of the label wide; the number sits just under the bars, slightly larger. */
+   and the number sits just under the bars, slightly larger.
+
+   The reference printout drew the barcode at 0.649 of the label width, which
+   left far more white on either side than any standard asks for. Auto-fit now
+   takes the whole printable width instead, less the quiet zone the code needs
+   to scan — on small stock that is a fifth again of barcode. */
 const LINE     = 1.115;   // line pitch, × text size
 const GAP_BARS = 0.17;    // space above the bars, × text size
 const GAP_NUM  = 0.10;    // space above the number, × text size
 const R_BAR    = 3.94;    // bar height,   × text size
 const R_NUM    = 1.08;    // number size,  × text size
-const R_BARW   = 0.649;   // barcode width, × label width
+const R_QUIET  = 10;      // clear space each side of a Code 128, in modules (the standard's minimum)
 /* What the scanner "types" after the number. The reference printout carries a
    line feed, so a scan lands the code and presses Enter. */
 const SUFFIX = { "":"", lf:"\n", cr:"\r", crlf:"\r\n", tab:"\t" };
 function payloadOf(code, c){ return code + (SUFFIX[(c || cfg).suffix] || ""); }
-const R_FILL   = 0.90;    // how much of the label height the printed block fills
+const R_FILL   = 0.93;    // how much of the label height the printed block fills
 
 /* Die-cut stock often comes two or three labels across. The label itself does
    not change; the page the printer sees does — it is the whole web, and each
