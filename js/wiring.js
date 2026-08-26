@@ -291,8 +291,26 @@ $("#s-preset").addEventListener("change", e => {
   formToCfg(); autoFit();
 });
 Object.keys(CFG_FIELDS).forEach(id => {
-  if (id !== "s-barmode") $("#" + id).addEventListener("input", formToCfg);
+  if (id !== "s-barmode" && id !== "s-sym") $("#" + id).addEventListener("input", formToCfg);
 });
+
+/* Choosing the code type. It belongs to the stock, like every other measurement
+   here, so it is remembered against whichever customer is selected — the Print
+   tab and Label setup are two views of the same setting. Switching re-fits,
+   because a square QR and a wide barcode need very different room. */
+function setSymbology(now){
+  if (!now || now === cfg.sym) return;
+  cfg.sym = now;
+  fitProfile(cfg, currentLabel());
+  cfgToForm();
+  /* Reference data is an administrator's to write. An operator still gets the
+     code type they picked — on the preview, in the queue and on the printout —
+     it simply is not remembered against the customer. */
+  if (isAdmin()) saveActive();
+  renderPreview();
+}
+$("#s-sym").addEventListener("change", e => setSymbology(e.target.value));
+$("#f-sym").addEventListener("change", e => setSymbology(e.target.value));
 
 /* Switching sizing method carries the current measurement over, so the label doesn't jump. */
 $("#s-barmode").addEventListener("change", () => {

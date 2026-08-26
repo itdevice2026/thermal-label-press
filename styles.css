@@ -125,6 +125,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
 @media (max-width:620px){.grid2,.grid3{grid-template-columns:1fr}}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field[hidden]{display:none}   /* an author rule outranks the browser's own [hidden] */
 .field.span2{grid-column:1/-1}
 .field.off{opacity:.5}
 .field.off input{cursor:not-allowed}

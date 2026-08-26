@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Thermal Label Press</title>
-<meta name="description" content="Customer-based Code 128 label generator for Zebra and Godex thermal printers.">
+<meta name="description" content="Customer-based Code 128 and QR label generator for Zebra and Godex thermal printers.">
 <meta name="theme-color" content="#0F5C63">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@
       </g>
     </svg>
     <span>Thermal Label Press</span>
-    <span class="sub">Code 128</span>
+    <span class="sub">Code 128 · QR</span>
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="print">Print</button>
@@ -46,7 +46,7 @@
 <!-- ============ SIGN IN ============ -->
 <div id="gate" hidden>
   <div class="gateCard">
-    <div class="gateLogo"><img src="meatplus.webp" alt="Meatplus Trading Corporation" width="220" height="162"></div>
+    <div class="gateLogo"><img src="../meatplus.webp" alt="Meatplus Trading Corporation" width="220" height="162"></div>
     <div class="gateBrand">
       <svg width="26" height="26" viewBox="0 0 22 22" aria-hidden="true">
         <rect x="1" y="3" width="20" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -124,6 +124,14 @@
           <div class="field">
             <label for="f-code">Barcode number</label>
             <input type="text" id="f-code" class="mono" placeholder="39012472" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="f-sym">Code type</label>
+            <select id="f-sym">
+              <option value="c128">Code 128 — the bars on the sample label</option>
+              <option value="qr">QR Code — a square, readable by phone</option>
+            </select>
+            <span class="hint">Both carry the same number.<span data-admin="1"> Remembered against the customer selected above.</span><span data-op="1"> Used for this run; an administrator sets what a customer normally gets.</span></span>
           </div>
           <div class="field">
             <label for="f-pd">Production date</label>
@@ -384,10 +392,17 @@
       </div>
 
       <div class="card">
-        <h2>Barcode measurement</h2>
+        <h2>Code measurement</h2>
         <div class="body">
           <div class="grid3">
             <div class="field" style="grid-column:span 3">
+              <label for="s-sym">Code type</label>
+              <select id="s-sym">
+                <option value="c128">Code 128 — the bars on the sample label</option>
+                <option value="qr">QR Code — a square, readable by phone</option>
+              </select>
+            </div>
+            <div class="field" id="fld-barmode" style="grid-column:span 3">
               <label for="s-barmode">Sizing method</label>
               <select id="s-barmode">
                 <option value="width">Set the barcode size — bars adjust to fit</option>
@@ -395,8 +410,18 @@
               </select>
             </div>
             <div class="field" id="fld-barw"><label for="s-barw">Barcode width (mm)</label><input type="number" id="s-barw" class="mono" step="0.5" min="10"></div>
-            <div class="field"><label for="s-bar">Barcode height (mm)</label><input type="number" id="s-bar" class="mono" step="0.5" min="3"></div>
+            <div class="field" id="fld-bar"><label for="s-bar">Barcode height (mm)</label><input type="number" id="s-bar" class="mono" step="0.5" min="3"></div>
             <div class="field" id="fld-mod"><label for="s-mod">Module width (mm)</label><input type="number" id="s-mod" class="mono" step="0.01" min="0.15"></div>
+            <div class="field" id="fld-qrmm"><label for="s-qrmm">QR size (mm)</label><input type="number" id="s-qrmm" class="mono" step="0.5" min="4"></div>
+            <div class="field" id="fld-qrec">
+              <label for="s-qrec">QR error correction</label>
+              <select id="s-qrec">
+                <option value="L">L — smallest code, least tolerant</option>
+                <option value="M">M — the usual choice</option>
+                <option value="Q">Q — tolerates a smudged label</option>
+                <option value="H">H — most tolerant, largest code</option>
+              </select>
+            </div>
             <div class="field" style="grid-column:span 3">
               <label for="s-suffix">What the scanner types after the number</label>
               <select id="s-suffix">
@@ -470,6 +495,7 @@
 
 <script src="../config.js"></script>
 <script src="mock-sb.js"></script>
+<script src="../js/qr.js"></script>
 <script src="../js/core.js"></script>
 <script src="../js/label.js"></script>
 <script src="../js/lists.js"></script>

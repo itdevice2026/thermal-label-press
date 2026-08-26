@@ -5,22 +5,33 @@ const CFG_FIELDS = {
   "s-w":"w","s-h":"h","s-pad":"pad","s-dpi":"dpi","s-dark":"dark","s-speed":"speed",
   "s-title":"title","s-date":"date","s-num":"num","s-bar":"bar","s-mod":"mod",
   "s-barmode":"barmode","s-barw":"barw","s-suffix":"suffix",
+  "s-sym":"sym","s-qrmm":"qrmm","s-qrec":"qrec",
   "s-fmt":"fmt","s-pdl":"pdl","s-edl":"edl","s-shownum":"shownum"
 };
 function cfgToForm(){
   for (const id in CFG_FIELDS) $("#" + id).value = cfg[CFG_FIELDS[id]];
+  if ($("#f-sym")) $("#f-sym").value = cfg.sym || "c128";
   const key = cfg.w + "x" + cfg.h;
   const sel = $("#s-preset");
   sel.value = Array.from(sel.options).some(o => o.value === key) ? key : "custom";
   syncBarMode();
 }
-/* In "width" mode the module width is a result, not an input — show it, don't accept it. */
+/* In "width" mode the module width is a result, not an input — show it, don't accept it.
+   And only one symbology's measurements are worth showing at a time. */
 function syncBarMode(){
+  const qr = cfg.sym === "qr";
   const byWidth = cfg.barmode === "width";
   $("#fld-mod").classList.toggle("off", byWidth);
   $("#s-mod").disabled = byWidth;
   $("#fld-barw").classList.toggle("off", !byWidth);
   $("#s-barw").disabled = !byWidth;
+  /* Only one symbology's measurements are worth showing at a time; the other
+     set is hidden outright rather than dimmed, which is reserved for a field
+     that is a result rather than an input. */
+  [["#fld-barmode", qr], ["#fld-barw", qr], ["#fld-bar", qr], ["#fld-mod", qr],
+   ["#fld-qrmm", !qr], ["#fld-qrec", !qr]].forEach(([sel, hide]) => {
+    const el = $(sel); if (el) el.hidden = hide;
+  });
 }
 function formToCfg(){
   for (const id in CFG_FIELDS){
@@ -88,6 +99,9 @@ function fitProfile(p, data){
     p.date  = p.title;
     p.num   = Math.round(s * R_NUM * 100) / 100;
     p.bar   = Math.round(s * R_BAR * 100) / 100;
+    /* A QR is square, so it is sized off the same text scale as the bar height
+       and then held inside the printable width, quiet zone included. */
+    p.qrmm  = Math.round(Math.min(s * R_BAR, (p.w - p.pad * 2) * 21 / 29) * 100) / 100;
   };
   let lo = 0.8, hi = 12, best = 0.8;
   for (let i = 0; i < 22; i++){

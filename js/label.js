@@ -81,6 +81,34 @@ function barcodeSVG(modules, moduleMM, heightMM){
          '" preserveAspectRatio="none" shape-rendering="crispEdges" fill="#000" role="img" aria-label="Barcode">' + rects + '</svg>';
 }
 
+/* QR code as an SVG string, sized in millimetres.
+
+   `codeMM` is the code itself; the quiet zone the standard requires — four
+   modules of blank on every side — is added around it, so the element takes up
+   rather more room than the code measures. Reserving it here is the point: on a
+   label this crowded, the dates would otherwise sit right against the code and
+   a scanner would struggle. */
+function qrSVG(qr, codeMM, quiet){
+  quiet = quiet == null ? 4 : quiet;
+  const n = qr.size, u = codeMM / n, side = codeMM + u * quiet * 2;
+  let rects = "";
+  for (let y = 0; y < n; y++){
+    let run = 0;
+    for (let x = 0; x <= n; x++){
+      if (x < n && qr.modules[y][x]){ run++; continue; }
+      if (run){
+        rects += '<rect x="' + ((x - run + quiet) * u).toFixed(4) + '" y="' + ((y + quiet) * u).toFixed(4) +
+                 '" width="' + (run * u).toFixed(4) + '" height="' + u.toFixed(4) + '"/>';
+        run = 0;
+      }
+    }
+  }
+  const s = side.toFixed(3);
+  return '<svg width="' + s + 'mm" height="' + s + 'mm" viewBox="0 0 ' + s + " " + s +
+         '" shape-rendering="crispEdges" role="img" aria-label="QR code">' +
+         '<rect width="' + s + '" height="' + s + '" fill="#fff"/><g fill="#000">' + rects + "</g></svg>";
+}
+
 /* ============================================================
    State
    ============================================================ */
@@ -88,8 +116,10 @@ const DEFAULTS = {
   w:50, h:30, pad:1.4, dpi:203, dark:12, speed:4,
   title:3.3, date:2.7, num:3.0, bar:8, mod:0.38,
   barmode:"width", barw:30, suffix:"lf", fmtv:1,
+  sym:"c128", qrmm:8, qrec:"M",
   fmt:"mdy", pdl:"PD:", edl:"ED:", shownum:1
 };
+const SYM_NAME = { c128:"Code 128", qr:"QR Code" };
 const LOG_MAX = 2000;
 
 const store = {
@@ -107,7 +137,7 @@ let editingCustomer = null;
 let zoom      = 2;
 
 /* Stock and layout belong to the customer; the printer settings belong to the machine. */
-const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix"];
+const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix","sym","qrmm","qrec"];
 const PRINTER_KEYS = ["dpi","dark","speed"];
 
 /* The label profile in force for a customer: its own stock over the house default,
@@ -183,7 +213,10 @@ function currentLabel(){
     ed:     $("#f-ed").value,
     code:   $("#f-code").value.trim(),
     copies: Math.max(1, Math.min(500, parseInt($("#f-copies").value, 10) || 1)),
-    cust:   $("#f-cust").value          /* recorded with the run — never rendered on the label */
+    cust:   $("#f-cust").value,         /* recorded with the run — never rendered on the label */
+    /* Carried on the line itself so a queued label prints the code type it was
+       queued with, even when the customer's saved stock says otherwise. */
+    sym:    $("#f-sym") ? $("#f-sym").value : cfg.sym
   };
 }
 
@@ -241,7 +274,46 @@ function buildLabel(data, c){
     el.appendChild(d);
   }
 
-  if (data.code){
+  if (data.code && c.sym === "qr"){
+    /* A QR carries exactly what the Code 128 carries — the number and whatever
+       the scanner is set to type after it — so swapping the symbology changes
+       nothing downstream of the scan. */
+    let qr = null;
+    try { qr = qrEncode(payloadOf(data.code, c), { ec: c.qrec || "M" }); }
+    catch(err){ issues.push(["bad", err.message]); }
+    if (qr){
+      const usable = c.w - c.pad * 2, quiet = 4;
+      const withQuiet = s => s * (qr.size + quiet * 2) / qr.size;
+      let side = +c.qrmm || DEFAULTS.qrmm;
+      if (withQuiet(side) > usable){
+        side = usable * qr.size / (qr.size + quiet * 2);
+        issues.push(["warn", "The QR code and its quiet zone are wider than a " + c.w +
+          " mm label — trimmed to " + side.toFixed(1) + " mm. Widen the label or reduce the margin."]);
+      }
+      const u = side / qr.size, dotMM = 25.4 / c.dpi;
+      if (u < dotMM){
+        issues.push(["bad", "Each QR module would be " + u.toFixed(3) + " mm, thinner than one printer dot (" +
+          dotMM.toFixed(3) + " mm). It will not scan — make the code larger."]);
+      } else if (u < 0.33){
+        issues.push(["warn", "QR module " + u.toFixed(3) + " mm is below the 0.33 mm rule of thumb. Test a scan before a long run."]);
+      }
+      const box = document.createElement("div");
+      box.style.marginTop = (c.date * GAP_BARS) + "mm";
+      box.innerHTML = qrSVG(qr, side, quiet);
+      el.appendChild(box);
+      el._qr = qr; el._qrSide = side;
+
+      if (+c.shownum){
+        const n = document.createElement("div");
+        n.className = "num";
+        n.style.fontSize = c.num + "mm";
+        n.style.marginTop = (c.date * GAP_NUM) + "mm";
+        n.textContent = data.code;
+        el.appendChild(n);
+      }
+    }
+  }
+  else if (data.code){
     let enc = null;
     try { enc = code128(payloadOf(data.code, c)); } catch(err){ issues.push(["bad", err.message]); }
     if (enc){
@@ -322,7 +394,33 @@ function buildZPL(data, copies, c){
         y += Math.round(fh * LINE);
       });
   }
-  if (data.code){
+  if (data.code && c.sym === "qr"){
+    let qr = null;
+    try { qr = qrEncode(payloadOf(data.code, c), { ec: c.qrec || "M" }); } catch(e){ qr = null; }
+    if (qr){
+      /* ^BQ sizes a QR by whole-dot magnification, so the printed code is the
+         nearest multiple of the module count rather than exactly qrmm. The
+         printer runs its own encoder; it is handed the same text and the same
+         error-correction level, so it lands on the same version. */
+      const usable = c.w - c.pad * 2, quiet = 4;
+      const side = Math.min(+c.qrmm || DEFAULTS.qrmm, usable * qr.size / (qr.size + quiet * 2));
+      const mag  = Math.max(1, Math.min(10, Math.round(mm2dots(side, c) / qr.size)));
+      const codeDots = mag * qr.size;
+      const x = Math.max(0, Math.round((W - codeDots) / 2));
+      y += mm2dots(c.date * GAP_BARS, c) + mag * quiet;
+      L.push("^FO" + x + "," + y + "^BQN,2," + mag + "," + (c.qrec || "M") + ",7");
+      const zdata = data.code + (SUFFIX[c.suffix] || "").replace(/[\s\S]/g, ch => "_" + ch.charCodeAt(0).toString(16).padStart(2,"0"));
+      L.push("^FH_^FD" + (c.qrec || "M") + "A," + zdata + "^FS");
+      y += codeDots + mag * quiet;
+      if (+c.shownum){
+        const fh = mm2dots(c.num, c);
+        y += mm2dots(c.date * GAP_NUM, c);
+        L.push("^FO" + PAD + "," + y + "^A0N," + fh + "," + Math.round(fh*0.6) +
+               "^FB" + (W - PAD*2) + ",1,0,C,0^FD" + data.code + "^FS");
+      }
+    }
+  }
+  else if (data.code){
     let enc = null;
     try { enc = code128(payloadOf(data.code, c)); } catch(e){ enc = null; }
     if (enc){
@@ -394,13 +492,16 @@ function renderPreview(){
     host.style.width  = (cfg.w * mmpx * z) + "px";
   });
 
-  const mod = el._mod || cfg.mod;
+  const qr  = el._qr;
+  const mod = qr ? (el._qrSide / qr.size) : (el._mod || cfg.mod);
   const bw  = el._enc ? el._enc.modules.length * mod : 0;
   const spec =
     '<span>label <b>' + cfg.w + " × " + cfg.h + '</b> mm</span>' +
-    (bw ? '<span>barcode <b>' + bw.toFixed(1) + " × " + Number(cfg.bar).toFixed(1) + '</b> mm</span>' : "") +
+    (qr  ? '<span>QR <b>' + el._qrSide.toFixed(1) + " × " + el._qrSide.toFixed(1) + '</b> mm</span>' : "") +
+    (bw  ? '<span>barcode <b>' + bw.toFixed(1) + " × " + Number(cfg.bar).toFixed(1) + '</b> mm</span>' : "") +
     '<span>module <b>' + mod.toFixed(3) + '</b> mm</span>' +
     '<span><b>' + cfg.dpi + '</b> dpi</span>' +
+    (qr ? '<span>version <b>' + qr.version + "</b> · <b>" + qr.ec + '</b></span>' : "") +
     (el._enc ? '<span><b>' + el._enc.modules.length + '</b> modules</span>' : "");
   $("#specs").innerHTML = spec;
   if ($("#specs2")) $("#specs2").innerHTML = spec;
@@ -410,12 +511,20 @@ function renderPreview(){
   const ro = $("#bar-readout");
   if (ro){
     const dots = Math.max(1, Math.round(mod * cfg.dpi / 25.4));
-    const printed = el._enc ? (el._enc.modules.length * dots * 25.4 / cfg.dpi) : 0;
-    ro.innerHTML = el._enc
-      ? "This number needs <b>" + el._enc.modules.length + "</b> modules, so each bar unit is <b>" + mod.toFixed(3) +
-        " mm</b> (" + dots + " dot" + (dots === 1 ? "" : "s") + " at " + cfg.dpi + " dpi). Sent as ZPL the printer snaps that to <b>" +
-        printed.toFixed(1) + " mm</b> wide. A longer barcode number needs more modules — in this mode the barcode keeps its width and the bars get thinner."
-      : "Enter a barcode number on the Print tab to see the measurement.";
+    if (qr){
+      ro.innerHTML = "This code is version <b>" + qr.version + "</b> at error correction <b>" + qr.ec +
+        "</b> — <b>" + qr.size + " × " + qr.size + "</b> modules, so each is <b>" + mod.toFixed(3) + " mm</b> (" +
+        dots + " dot" + (dots === 1 ? "" : "s") + " at " + cfg.dpi + " dpi). A quiet zone of four modules is kept " +
+        "clear on every side, which is why the code takes up more room than its size suggests. A higher error " +
+        "correction level survives more smudging but needs a larger code for the same number.";
+    } else {
+      const printed = el._enc ? (el._enc.modules.length * dots * 25.4 / cfg.dpi) : 0;
+      ro.innerHTML = el._enc
+        ? "This number needs <b>" + el._enc.modules.length + "</b> modules, so each bar unit is <b>" + mod.toFixed(3) +
+          " mm</b> (" + dots + " dot" + (dots === 1 ? "" : "s") + " at " + cfg.dpi + " dpi). Sent as ZPL the printer snaps that to <b>" +
+          printed.toFixed(1) + " mm</b> wide. A longer barcode number needs more modules — in this mode the barcode keeps its width and the bars get thinner."
+        : "Enter a barcode number on the Print tab to see the measurement.";
+    }
   }
   $("#pv-scale").textContent = "×" + zApplied.toFixed(1) + " on screen";
 
@@ -427,7 +536,8 @@ function renderPreview(){
   const seen = new Set();
   const flagHTML = issues.filter(i => !seen.has(i[1]) && seen.add(i[1]))
     .map(i => '<div class="flag ' + i[0] + '"><span class="ic">' + (i[0] === "bad" ? "!" : "△") + '</span><span>' + esc(i[1]) + "</span></div>").join("")
-    || (data.code ? '<div class="flag ok"><span class="ic">✓</span><span>Code 128 encoded and within tolerance for this stock.</span></div>' : "");
+    || (data.code ? '<div class="flag ok"><span class="ic">✓</span><span>' + (SYM_NAME[cfg.sym] || SYM_NAME.c128) +
+        ' encoded and within tolerance for this stock.</span></div>' : "");
   $("#flags").innerHTML = flagHTML;
   if ($("#flags2")) $("#flags2").innerHTML = flagHTML;
 

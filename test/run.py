@@ -95,6 +95,49 @@ with sync_playwright() as p:
         codes.append(r[0].text if r else None)
     check("both copies print and scan", codes, ["39012472\n","39012472\n"])
 
+    # ---- the same number as a QR code ----
+    # Switching the code type is a stock setting like any other measurement, so
+    # it is remembered against the customer and the label re-fits around a
+    # square instead of a strip. What the scanner reads must not change.
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
+    pg.select_option("#f-sym", "qr"); pg.wait_for_timeout(600)
+    check("preview swaps to a QR", pg.evaluate(
+        "!!document.querySelector('#stageInner svg[aria-label=\"QR code\"]')"), True)
+    check("and the bars are gone", pg.evaluate(
+        "!document.querySelector('#stageInner svg[aria-label=\"Barcode\"]')"), True)
+    check("the readout names the version", "version" in pg.inner_text("#specs").lower(), True)
+    check("no complaints about the fit", pg.evaluate(
+        "!document.querySelector('#flags .flag.bad')"), True)
+    zpl = pg.inner_text("#zpl")
+    check("zpl emits a QR field", "^BQN,2," in zpl, True)
+    check("zpl drops the Code 128 field", "^BCN," not in zpl, True)
+    check("zpl carries the number and the Enter suffix", "A,39012472_0a^FS" in zpl, True)
+
+    pg.evaluate("window.print=()=>{}")
+    pg.fill("#f-copies","1"); pg.click("#b-print"); pg.wait_for_timeout(600)
+    pg.pdf(path="/home/claude/repo/test/qr.pdf", prefer_css_page_size=True, print_background=True)
+    for f in glob.glob("/home/claude/repo/test/qp-*.png"): os.remove(f)
+    subprocess.run("pdftoppm -r 600 -png /home/claude/repo/test/qr.pdf /home/claude/repo/test/qp", shell=True)
+    qcodes = []
+    for f in sorted(glob.glob("/home/claude/repo/test/qp-*.png")):
+        r = zxingcpp.read_barcodes(Image.open(f).convert("RGB"))
+        qcodes += [(str(b.format), b.text) for b in r]
+    check("the printed QR scans to the same number", qcodes, [("QR Code", "39012472\n")])
+
+    # the queue remembers the code type it was queued with
+    pg.click("#b-addq"); pg.wait_for_timeout(400)
+    check("the queued line records the code type", pg.evaluate("queue[0].sym"), "qr")
+    pg.select_option("#f-sym", "c128"); pg.wait_for_timeout(600)
+    pg.click("#b-printq"); pg.wait_for_timeout(700)
+    check("the queued label still prints as a QR", pg.evaluate(
+        "!!document.querySelector('#sheet svg[aria-label=\"QR code\"]')"), True)
+    pg.click("#b-clearq"); pg.wait_for_timeout(300)
+
+    check("switching back restores the bars", pg.evaluate(
+        "!!document.querySelector('#stageInner svg[aria-label=\"Barcode\"]')"), True)
+    check("the choice is remembered on the customer",
+          pg.evaluate("(customers.find(c=>c.code=='DALI').stock||{}).sym"), "c128")
+
     # the queue count is editable in place
     pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
     pg.fill("#f-copies","3"); pg.click("#b-addq"); pg.wait_for_timeout(400)
@@ -228,11 +271,24 @@ with sync_playwright() as p:
           "blocked")
     check("no sneak account exists", pg.evaluate("!__DB.users.find(u=>u.email==='sneak@meatplus.ph')"), True)
 
+    # An operator may pick a code type for the run in front of them, but stock
+    # is reference data, so the choice must not be written back to the customer.
+    stock_before = pg.evaluate("JSON.stringify(customers.find(c=>c.code=='DALI').stock||{})")
+    pg.select_option("#f-sym", "qr"); pg.wait_for_timeout(600)
+    check("operator gets the QR they picked", pg.evaluate(
+        "!!document.querySelector('#stageInner svg[aria-label=\"QR code\"]')"), True)
+    check("but the customer's stock is untouched",
+          pg.evaluate("JSON.stringify(customers.find(c=>c.code=='DALI').stock||{})"), stock_before)
+    check("and nothing was written to the database",
+          pg.evaluate("JSON.stringify((__DB.lbl_customers.find(c=>c.code=='DALI')||{}).stock||{})"), stock_before)
+    pg.select_option("#f-sym", "c128"); pg.wait_for_timeout(600)
+
     # ---- operator proposes; admin approves ----
     pg.click('[data-tab="products"]'); pg.wait_for_timeout(400)
     check("operator can reach Products", pg.is_visible("#b-add"), True)
     check("operator cannot import", pg.is_visible("#b-import"), False)
-    check("operator sees the approval note", pg.is_visible('[data-op="1"]'), True)
+    # scoped to the panel: other tabs carry operator-only notes of their own
+    check("operator sees the approval note", pg.is_visible('#p-products [data-op="1"]'), True)
     pg.fill("#n-name","AllJoy Chicken Feet"); pg.fill("#n-size","500g"); pg.fill("#n-code","39012480")
     pg.select_option("#n-cust", pg.evaluate("customers.find(c=>c.code=='DALI').id"))
     pg.click("#b-add"); pg.wait_for_timeout(800)

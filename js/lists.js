@@ -297,6 +297,7 @@ function printLabels(list){
   let total = 0;
   list.forEach(d => {
     const prof = profileFor(d.cust);
+    if (d.sym) prof.sym = d.sym;          /* the line's own choice wins over the stock's */
     const key = prof.w + "x" + prof.h;
     let idx = sizes.indexOf(key);
     if (idx < 0){ sizes.push(key); idx = sizes.length - 1; }

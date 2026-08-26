@@ -3,3 +3,5 @@ test/pg-*.png
 test/*-small.png
 test/shot-*.png
 .DS_Store
+test/qr.pdf
+test/qp-*.png
