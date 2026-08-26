@@ -95,12 +95,18 @@ with sync_playwright() as p:
         codes.append(r[0].text if r else None)
     check("both copies print and scan", codes, ["39012472\n","39012472\n"])
 
+    # The code type belongs to the stock, so it is set on Label setup and
+    # nowhere else; this helper stands in for the two clicks a person makes.
+    def set_sym(value):
+        pg.click('[data-tab="setup"]'); pg.wait_for_timeout(250)
+        pg.select_option("#s-sym", value); pg.wait_for_timeout(650)
+        pg.click('[data-tab="print"]'); pg.wait_for_timeout(250)
+
     # ---- the same number as a QR code ----
     # Switching the code type is a stock setting like any other measurement, so
     # it is remembered against the customer and the label re-fits around a
     # square instead of a strip. What the scanner reads must not change.
-    pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
-    pg.select_option("#f-sym", "qr"); pg.wait_for_timeout(600)
+    set_sym("qr")
     check("preview swaps to a QR", pg.evaluate(
         "!!document.querySelector('#stageInner svg[aria-label=\"QR code\"]')"), True)
     check("and the bars are gone", pg.evaluate(
@@ -127,7 +133,7 @@ with sync_playwright() as p:
     # the queue remembers the code type it was queued with
     pg.click("#b-addq"); pg.wait_for_timeout(400)
     check("the queued line records the code type", pg.evaluate("queue[0].sym"), "qr")
-    pg.select_option("#f-sym", "c128"); pg.wait_for_timeout(600)
+    set_sym("c128")
     pg.click("#b-printq"); pg.wait_for_timeout(700)
     check("the queued label still prints as a QR", pg.evaluate(
         "!!document.querySelector('#sheet svg[aria-label=\"QR code\"]')"), True)
@@ -138,15 +144,15 @@ with sync_playwright() as p:
     check("the choice is remembered on the customer",
           pg.evaluate("(customers.find(c=>c.code=='DALI').stock||{}).sym"), "c128")
 
-    # Both pickers are filled from one list; they drifted apart when the markup
-    # held two copies, and the Label setup one silently kept offering two types.
+    # The picker is on Label setup and only there — the Print tab is for what
+    # goes on this run, not for how the customer's labels are set up.
     pg.click('[data-tab="setup"]'); pg.wait_for_timeout(300)
-    setup_types = pg.eval_on_selector_all("#s-sym option", "o=>o.map(x=>x.value)")
-    pg.click('[data-tab="print"]'); pg.wait_for_timeout(300)
-    print_types = pg.eval_on_selector_all("#f-sym option", "o=>o.map(x=>x.value)")
-    check("the Print tab offers every code type", print_types,
+    check("Label setup offers every code type",
+          pg.eval_on_selector_all("#s-sym option", "o=>o.map(x=>x.value)"),
           ["c128","gs1128","ean13","ean8","upca","itf14","qr","qrdl"])
-    check("Label setup offers exactly the same ones", setup_types, print_types)
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(300)
+    check("the Print tab does not offer it as well",
+          pg.evaluate("!document.querySelector('#f-sym')"), True)
 
     # ---- every other code type, printed and scanned back ----
     # A retail code is only worth printing if a scanner agrees with it, so each
@@ -171,21 +177,21 @@ with sync_playwright() as p:
         ("itf14", "1480123456789", [("ITF",    "14801234567894")]),
     ]:
         pg.fill("#f-code", code)
-        pg.select_option("#f-sym", sym); pg.wait_for_timeout(700)
+        set_sym(sym)
         check(sym + " draws its own digits", pg.evaluate(
             "!!document.querySelector('#stageInner svg[aria-label$=\" barcode\"] text')"), True)
         check(sym + " has no complaint", pg.evaluate("!document.querySelector('#flags .flag.bad')"), True)
         check(sym + " prints and scans", print_and_scan(sym), want)
 
     # a wrong check digit must stop the label, not print a number belonging to someone else
-    pg.select_option("#f-sym", "ean13"); pg.fill("#f-code", "4801234567890"); pg.wait_for_timeout(700)
+    set_sym("ean13"); pg.fill("#f-code", "4801234567890"); pg.wait_for_timeout(700)
     check("a bad check digit is refused", "check digit" in pg.inner_text("#flags"), True)
     check("and nothing is drawn", pg.evaluate(
         "!document.querySelector('#stageInner svg[aria-label=\"EAN13 barcode\"]')"), True)
 
     # GS1-128 carries the dates and the batch, and comes back out as fields
     pg.fill("#f-code", "39012472")
-    pg.select_option("#f-sym", "gs1128"); pg.wait_for_timeout(700)
+    set_sym("gs1128")
     check("the batch box appears for a code that can carry it", pg.is_visible("#f-batch"), True)
     pg.fill("#f-batch", "L2608A"); pg.wait_for_timeout(700)
     check("the readout lists what it carries",
@@ -195,7 +201,7 @@ with sync_playwright() as p:
           [("Code 128", "(11)260826(17)270826(240)39012472(10)L2608A")])
 
     # a Digital Link needs a real GTIN and says so rather than inventing one
-    pg.select_option("#f-sym", "qrdl"); pg.wait_for_timeout(700)
+    set_sym("qrdl")
     check("a Digital Link without a GTIN is refused", "GTIN" in pg.inner_text("#flags"), True)
     pg.fill("#f-code", "4801234567897"); pg.wait_for_timeout(800)
     check("with a GTIN it points somewhere",
@@ -212,7 +218,7 @@ with sync_playwright() as p:
           [("QR Code", "https://id.gs1.org/01/04801234567897/10/L2608A?11=260826&17=270826")])
 
     pg.fill("#f-batch", ""); pg.fill("#f-code", "39012472")
-    pg.select_option("#f-sym", "c128"); pg.wait_for_timeout(700)
+    set_sym("c128")
 
     # the queue count is editable in place
     pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
@@ -369,17 +375,18 @@ with sync_playwright() as p:
           "blocked")
     check("no sneak account exists", pg.evaluate("!__DB.users.find(u=>u.email==='sneak@meatplus.ph')"), True)
 
-    # An operator may pick a code type for the run in front of them, but stock
-    # is reference data, so the choice must not be written back to the customer.
+    # The code type is a stock setting on an administrator's tab, so an operator
+    # prints whatever the customer is set up for and has no way to change it —
+    # not by picker, because there is none, and not through the database either.
     stock_before = pg.evaluate("JSON.stringify(customers.find(c=>c.code=='DALI').stock||{})")
-    pg.select_option("#f-sym", "qr"); pg.wait_for_timeout(600)
-    check("operator gets the QR they picked", pg.evaluate(
-        "!!document.querySelector('#stageInner svg[aria-label=\"QR code\"]')"), True)
-    check("but the customer's stock is untouched",
-          pg.evaluate("JSON.stringify(customers.find(c=>c.code=='DALI').stock||{})"), stock_before)
-    check("and nothing was written to the database",
+    check("an operator has no code-type picker",
+          pg.evaluate("!document.querySelector('#s-sym') || !document.querySelector('.tabs [data-tab=\"setup\"]').offsetParent"), True)
+    check("they print what the customer is set up for", pg.evaluate("cfg.sym"), "c128")
+    check("and cannot write the stock even by hand", pg.evaluate(
+        "(async()=>{try{await sb.update('lbl_customers','id=eq.'+customers.find(c=>c.code=='DALI').id,{stock:{sym:'qr'}});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
+        "blocked")
+    check("so the stock is untouched",
           pg.evaluate("JSON.stringify((__DB.lbl_customers.find(c=>c.code=='DALI')||{}).stock||{})"), stock_before)
-    pg.select_option("#f-sym", "c128"); pg.wait_for_timeout(600)
 
     # ---- operator proposes; admin approves ----
     pg.click('[data-tab="products"]'); pg.wait_for_timeout(400)

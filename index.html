@@ -125,11 +125,9 @@
             <label for="f-code">Barcode number</label>
             <input type="text" id="f-code" class="mono" placeholder="39012472" inputmode="numeric">
           </div>
-          <div class="field">
-            <label for="f-sym">Code type</label>
-            <select id="f-sym"></select>
-            <span class="hint">All of them carry the same number.<span data-admin="1"> Remembered against the customer selected above.</span><span data-op="1"> Used for this run; an administrator sets what a customer normally gets.</span></span>
-          </div>
+          <!-- The code type is part of a customer's label stock, not of the run,
+               so it is set once on the Label setup tab rather than offered here
+               where it looks like a per-label choice. -->
           <div class="field" id="fld-batch">
             <label for="f-batch">Batch or lot <span class="opt">optional</span></label>
             <input type="text" id="f-batch" class="mono" placeholder="L2608A" maxlength="20">

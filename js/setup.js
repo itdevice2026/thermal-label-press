@@ -10,7 +10,6 @@ const CFG_FIELDS = {
 };
 function cfgToForm(){
   for (const id in CFG_FIELDS) $("#" + id).value = cfg[CFG_FIELDS[id]];
-  if ($("#f-sym")) $("#f-sym").value = cfg.sym || "c128";
   const key = cfg.w + "x" + cfg.h;
   const sel = $("#s-preset");
   sel.value = Array.from(sel.options).some(o => o.value === key) ? key : "custom";
@@ -87,7 +86,7 @@ function paintScope(){
     ? '<div class="flag ' + (own ? "ok" : "warn") + '"><span class="ic">' + (own ? "▣" : "△") + "</span><span>Editing the stock for <b>" +
       esc(co.name) + "</b>" + (own ? " — its own " + co.stock.w + " × " + co.stock.h + " mm." :
       " — it still follows the house default. Any change here gives it its own size.") + "</span></div>"
-    : '<div class="flag ok"><span class="ic">▣</span><span>Editing the <b>house default</b>, used by customers that have no size of their own and by one-off labels. Pick a customer on the Print tab to set that customer’s stock.</span></div>';
+    : '<div class="flag ok"><span class="ic">▣</span><span>Editing the <b>house default</b>, used by customers that have no size of their own and by one-off labels. Choose a company below to set that company’s stock.</span></div>';
   const btn = $("#b-reset");
   if (btn) btn.textContent = (co && co.stock) ? "Clear — follow house default" : "Reset to defaults";
 }

@@ -203,9 +203,9 @@ const SYM_NAME = {
 const SYM_RETAIL = ["ean13","ean8","upca","itf14"];
 const SYM_2D     = ["qr","qrdl"];
 
-/* The list is built here and painted into both pickers, rather than written
-   out twice in the markup. Two hand-kept copies drifted apart once already —
-   the Print tab gained four code types that Label setup never heard about. */
+/* The list is built here and painted into the picker, rather than written out
+   in the markup. It lived in two places once and they drifted apart — the
+   Print tab gained six code types that Label setup never heard about. */
 const SYM_GROUPS = [
   ["Bars", [
     ["c128",   "Code 128 — the bars on the sample label"],
@@ -225,13 +225,11 @@ function paintSymOptions(){
     '<optgroup label="' + esc(group) + '">' +
     opts.map(([v, t]) => '<option value="' + v + '">' + esc(t) + "</option>").join("") +
     "</optgroup>").join("");
-  ["#f-sym", "#s-sym"].forEach(sel => {
-    const el = $(sel);
-    if (!el) return;
-    const cur = el.value;
-    el.innerHTML = html;
-    el.value = SYM_NAME[cur] ? cur : "c128";
-  });
+  const el = $("#s-sym");
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = html;
+  el.value = SYM_NAME[cur] ? cur : "c128";
 }
 const LOG_MAX = 2000;
 
@@ -328,9 +326,9 @@ function currentLabel(){
     copies: Math.max(1, Math.min(500, parseInt($("#f-copies").value, 10) || 1)),
     cust:   $("#f-cust").value,         /* recorded with the run — never rendered on the label */
     batch:  $("#f-batch") ? $("#f-batch").value.trim() : "",
-    /* Carried on the line itself so a queued label prints the code type it was
-       queued with, even when the customer's saved stock says otherwise. */
-    sym:    $("#f-sym") ? $("#f-sym").value : cfg.sym
+    /* Carried on the line itself so a queued label prints the code type that
+       was in force when it was queued, even if the setting changes afterwards. */
+    sym:    cfg.sym
   };
 }
 
