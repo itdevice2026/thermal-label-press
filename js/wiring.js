@@ -25,7 +25,7 @@ $$(".tabs button").forEach(b => b.addEventListener("click", () => {
   selectTab(b.dataset.tab);
 }));
 
-["f-name","f-size","f-code","f-pd","f-ed","f-copies"].forEach(id =>
+["f-name","f-size","f-code","f-batch","f-pd","f-ed","f-copies"].forEach(id =>
   $("#" + id).addEventListener("input", renderPreview));
 
 $("#f-pick").addEventListener("change", e => { if (e.target.value !== "") loadProduct(+e.target.value); });
@@ -366,6 +366,7 @@ function restoreDraft(){
   if (d){
     $("#f-name").value = d.name || ""; $("#f-size").value = d.size || "";
     $("#f-code").value = d.code || ""; $("#f-copies").value = d.copies || 1;
+    $("#f-batch").value = d.batch || "";
     if (d.cust && customers.some(c => c.id === d.cust)){ $("#f-cust").value = d.cust; renderCatalog(); }
     $("#f-pd").value = d.pd || todayISO();
     $("#f-ed").value = d.ed || addMonths($("#f-pd").value, 12);

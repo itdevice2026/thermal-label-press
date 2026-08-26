@@ -138,6 +138,72 @@ with sync_playwright() as p:
     check("the choice is remembered on the customer",
           pg.evaluate("(customers.find(c=>c.code=='DALI').stock||{}).sym"), "c128")
 
+    # ---- every other code type, printed and scanned back ----
+    # A retail code is only worth printing if a scanner agrees with it, so each
+    # one goes through the whole path: preview, page, PDF, 600 dpi raster, decode.
+    def print_and_scan(tag):
+        pg.evaluate("window.print=()=>{}")
+        pg.fill("#f-copies", "1"); pg.click("#b-print"); pg.wait_for_timeout(600)
+        path = "/home/claude/repo/test/sym-%s.pdf" % tag
+        pg.pdf(path=path, prefer_css_page_size=True, print_background=True)
+        for f in glob.glob("/home/claude/repo/test/sp-*.png"): os.remove(f)
+        subprocess.run("pdftoppm -r 600 -png %s /home/claude/repo/test/sp" % path, shell=True)
+        found = []
+        for f in sorted(glob.glob("/home/claude/repo/test/sp-*.png")):
+            found += [(str(b.format), b.text) for b in zxingcpp.read_barcodes(Image.open(f).convert("RGB"))]
+        os.remove(path)
+        return found
+
+    for sym, code, want in [
+        ("ean13", "480123456789",  [("EAN-13", "4801234567897")]),
+        ("ean8",  "4801234",       [("EAN-8",  "48012348")]),
+        ("upca",  "03600029145",   [("EAN-13", "0036000291452")]),   # a UPC-A is an EAN-13 with a leading zero
+        ("itf14", "1480123456789", [("ITF",    "14801234567894")]),
+    ]:
+        pg.fill("#f-code", code)
+        pg.select_option("#f-sym", sym); pg.wait_for_timeout(700)
+        check(sym + " draws its own digits", pg.evaluate(
+            "!!document.querySelector('#stageInner svg[aria-label$=\" barcode\"] text')"), True)
+        check(sym + " has no complaint", pg.evaluate("!document.querySelector('#flags .flag.bad')"), True)
+        check(sym + " prints and scans", print_and_scan(sym), want)
+
+    # a wrong check digit must stop the label, not print a number belonging to someone else
+    pg.select_option("#f-sym", "ean13"); pg.fill("#f-code", "4801234567890"); pg.wait_for_timeout(700)
+    check("a bad check digit is refused", "check digit" in pg.inner_text("#flags"), True)
+    check("and nothing is drawn", pg.evaluate(
+        "!document.querySelector('#stageInner svg[aria-label=\"EAN13 barcode\"]')"), True)
+
+    # GS1-128 carries the dates and the batch, and comes back out as fields
+    pg.fill("#f-code", "39012472")
+    pg.select_option("#f-sym", "gs1128"); pg.wait_for_timeout(700)
+    check("the batch box appears for a code that can carry it", pg.is_visible("#f-batch"), True)
+    pg.fill("#f-batch", "L2608A"); pg.wait_for_timeout(700)
+    check("the readout lists what it carries",
+          "Production date" in pg.inner_text("#carries"), True)
+    got = print_and_scan("gs1128")
+    check("GS1-128 prints and scans as fields", got,
+          [("Code 128", "(11)260826(17)270826(240)39012472(10)L2608A")])
+
+    # a Digital Link needs a real GTIN and says so rather than inventing one
+    pg.select_option("#f-sym", "qrdl"); pg.wait_for_timeout(700)
+    check("a Digital Link without a GTIN is refused", "GTIN" in pg.inner_text("#flags"), True)
+    pg.fill("#f-code", "4801234567897"); pg.wait_for_timeout(800)
+    check("with a GTIN it points somewhere",
+          "id.gs1.org/01/04801234567897" in pg.inner_text("#carries"), True)
+    # A Digital Link is a long payload, so the code grows; the label was fitted
+    # while it was still being refused, and the app has to say so rather than
+    # quietly printing a code with its edge cut off.
+    check("it says the content no longer fits",
+          "cut off" in pg.inner_text("#flags"), True)
+    pg.evaluate("autoFit()"); pg.wait_for_timeout(800)
+    check("after re-fitting there is no complaint",
+          pg.evaluate("!document.querySelector('#flags .flag.bad')"), True)
+    check("the Digital Link QR scans", print_and_scan("qrdl"),
+          [("QR Code", "https://id.gs1.org/01/04801234567897/10/L2608A?11=260826&17=270826")])
+
+    pg.fill("#f-batch", ""); pg.fill("#f-code", "39012472")
+    pg.select_option("#f-sym", "c128"); pg.wait_for_timeout(700)
+
     # the queue count is editable in place
     pg.click('[data-tab="print"]'); pg.wait_for_timeout(200)
     pg.fill("#f-copies","3"); pg.click("#b-addq"); pg.wait_for_timeout(400)

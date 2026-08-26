@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Thermal Label Press</title>
-<meta name="description" content="Customer-based Code 128 and QR label generator for Zebra and Godex thermal printers.">
+<meta name="description" content="Customer-based barcode label generator — Code 128, GS1-128, EAN, UPC, ITF-14 and QR — for Zebra and Godex thermal printers.">
 <meta name="theme-color" content="#0F5C63">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@
       </g>
     </svg>
     <span>Thermal Label Press</span>
-    <span class="sub">Code 128 · QR</span>
+    <span class="sub">Code 128 · GS1 · QR</span>
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="print">Print</button>
@@ -128,10 +128,25 @@
           <div class="field">
             <label for="f-sym">Code type</label>
             <select id="f-sym">
-              <option value="c128">Code 128 — the bars on the sample label</option>
-              <option value="qr">QR Code — a square, readable by phone</option>
+              <optgroup label="Bars">
+                <option value="c128">Code 128 — the bars on the sample label</option>
+                <option value="gs1128">GS1-128 — Code 128 carrying the dates and batch</option>
+                <option value="ean13">EAN-13 — retail checkout</option>
+                <option value="ean8">EAN-8 — retail checkout, small packs</option>
+                <option value="upca">UPC-A — retail checkout, North America</option>
+                <option value="itf14">ITF-14 — shipping cartons</option>
+              </optgroup>
+              <optgroup label="Square">
+                <option value="qr">QR Code — a square, readable by phone</option>
+                <option value="qrdl">QR Code · GS1 Digital Link — ready for 2D at the till</option>
+              </optgroup>
             </select>
-            <span class="hint">Both carry the same number.<span data-admin="1"> Remembered against the customer selected above.</span><span data-op="1"> Used for this run; an administrator sets what a customer normally gets.</span></span>
+            <span class="hint">All of them carry the same number.<span data-admin="1"> Remembered against the customer selected above.</span><span data-op="1"> Used for this run; an administrator sets what a customer normally gets.</span></span>
+          </div>
+          <div class="field" id="fld-batch">
+            <label for="f-batch">Batch or lot <span class="opt">optional</span></label>
+            <input type="text" id="f-batch" class="mono" placeholder="L2608A" maxlength="20">
+            <span class="hint">Goes into the barcode as (10) alongside the dates, so a scan captures it. Not printed as text.</span>
           </div>
           <div class="field">
             <label for="f-pd">Production date</label>
@@ -189,6 +204,7 @@
       <h2>Preview <span class="count" id="pv-scale"></span></h2>
       <div class="stage" id="stage"><div class="stageInner" id="stageInner"></div></div>
       <div class="specs" id="specs"></div>
+      <div id="carries"></div>
       <div id="flags"></div>
       <div class="body row" style="padding-top:4px">
         <button class="btn primary" id="b-print">Print label</button>
@@ -427,7 +443,12 @@
                 <option value="H">H — most tolerant, largest code</option>
               </select>
             </div>
-            <div class="field" style="grid-column:span 3">
+            <div class="field" id="fld-dlbase" style="grid-column:span 3">
+              <label for="s-dlbase">Digital Link address</label>
+              <input type="text" id="s-dlbase" class="mono" placeholder="https://id.gs1.org">
+              <span class="hint">Where the QR points. GS1's own resolver works out of the box; change it to your own domain when you have a page to send people to.</span>
+            </div>
+            <div class="field" id="fld-suffix" style="grid-column:span 3">
               <label for="s-suffix">What the scanner types after the number</label>
               <select id="s-suffix">
                 <option value="lf">Enter — line feed (matches the sample label)</option>
@@ -479,6 +500,7 @@
         <h2>Live preview</h2>
         <div class="stage" id="stage2"><div class="stageInner" id="stageInner2"></div></div>
         <div class="specs" id="specs2"></div>
+        <div id="carries2"></div>
         <div id="flags2" style="padding-top:12px"></div>
       </div>
       <div class="card">
@@ -501,6 +523,7 @@
 <script src="../config.js"></script>
 <script src="mock-sb.js"></script>
 <script src="../js/qr.js"></script>
+<script src="../js/linear.js"></script>
 <script src="../js/core.js"></script>
 <script src="../js/label.js"></script>
 <script src="../js/lists.js"></script>

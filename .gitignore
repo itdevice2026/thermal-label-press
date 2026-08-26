@@ -5,3 +5,5 @@ test/shot-*.png
 .DS_Store
 test/qr.pdf
 test/qp-*.png
+test/sym-*.pdf
+test/sp-*.png

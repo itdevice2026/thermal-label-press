@@ -15,8 +15,12 @@ const C128 = ["212222","222122","222221","121223","121322","131222","122213","12
 
 function digitRun(s, i){ let n = 0; while (i + n < s.length && s[i+n] >= "0" && s[i+n] <= "9") n++; return n; }
 
-/* Returns { modules: "1010...", codes: [...] } or throws on unsupported characters. */
-function code128(data){
+/* Returns { modules: "1010...", codes: [...] } or throws on unsupported characters.
+   `gs1` puts an FNC1 straight after the start code, which is the only thing
+   that distinguishes GS1-128 from plain Code 128 — the bars are the same
+   alphabet. A 0x1D in the data is an FNC1 too, used as a field separator after
+   a variable-length application identifier. */
+function code128(data, gs1){
   if (!data || !data.length) throw new Error("empty");
   for (const ch of data){
     const c = ch.charCodeAt(0);
@@ -27,9 +31,14 @@ function code128(data){
   const head = digitRun(data, 0);
   if ((head === data.length && head >= 2 && head % 2 === 0) || head >= 4){ mode = "C"; codes.push(105); }
   else { mode = "B"; codes.push(104); }
+  if (gs1) codes.push(102);                                  // FNC1 — valid in every subset
 
   while (i < data.length){
     const cc = data.charCodeAt(i);
+    if (cc === 29){                                          // FNC1 as a field separator
+      codes.push(102); i += 1;
+      continue;
+    }
     if (cc < 32){                                            // control character — Code A only
       if (mode !== "A"){ codes.push(101); mode = "A"; }      // Code A
       codes.push(cc + 64); i += 1;
@@ -81,6 +90,71 @@ function barcodeSVG(modules, moduleMM, heightMM){
          '" preserveAspectRatio="none" shape-rendering="crispEdges" fill="#000" role="img" aria-label="Barcode">' + rects + '</svg>';
 }
 
+/* EAN, UPC and ITF-14 as an SVG string, drawn the way the standard asks.
+
+   A retail symbol is not a strip of bars with a number printed underneath. The
+   guard bars drop past the ends of the code and the digits sit in the gap
+   between them; the leading digit of an EAN-13 lives out in the light margin,
+   which is also what tells a scanner where the symbol begins. ITF-14 gets a
+   bearer bar around it, so a scan across a clipped corner fails rather than
+   returning a short, plausible, wrong number.
+
+   `barWidthMM` measures the bars alone; the light margins are added around
+   them, so the element is wider than that and deliberately so. */
+function retailSVG(enc, barWidthMM, barHeightMM, fontMM){
+  const u = barWidthMM / enc.modules.length;
+  const q = enc.quiet;
+  const bearer = enc.bearer ? Math.max(u * 4.5, 0.4) : 0;
+  const drop   = enc.guards.length ? fontMM * 0.85 : 0;
+  const textH  = fontMM * 1.15;
+  const totalW = (q.left + enc.modules.length + q.right) * u + bearer * 2;
+  const totalH = barHeightMM + drop + textH + bearer * 2;
+  const x0 = q.left * u + bearer;
+
+  const isGuard = i => enc.guards.some(g => i >= g[0] && i < g[1]);
+  let bars = "", run = 0, runGuard = false;
+  const flush = (end) => {
+    if (!run) return;
+    const h = barHeightMM + (runGuard ? drop : 0);
+    bars += '<rect x="' + (x0 + (end - run) * u).toFixed(4) + '" y="' + bearer.toFixed(4) +
+            '" width="' + (run * u).toFixed(4) + '" height="' + h.toFixed(4) + '"/>';
+    run = 0;
+  };
+  for (let i = 0; i <= enc.modules.length; i++){
+    const on = enc.modules[i] === "1", g = on && isGuard(i);
+    if (on && run && g === runGuard){ run++; continue; }
+    flush(i);
+    if (on){ run = 1; runGuard = g; }
+  }
+
+  let frame = "";
+  if (bearer){
+    frame = '<rect x="0" y="0" width="' + totalW.toFixed(4) + '" height="' + bearer.toFixed(4) + '"/>' +
+            '<rect x="0" y="' + (bearer + barHeightMM).toFixed(4) + '" width="' + totalW.toFixed(4) + '" height="' + bearer.toFixed(4) + '"/>' +
+            '<rect x="0" y="0" width="' + bearer.toFixed(4) + '" height="' + (barHeightMM + bearer * 2).toFixed(4) + '"/>' +
+            '<rect x="' + (totalW - bearer).toFixed(4) + '" y="0" width="' + bearer.toFixed(4) + '" height="' + (barHeightMM + bearer * 2).toFixed(4) + '"/>';
+  }
+
+  const baseY = bearer * 2 + barHeightMM + drop + fontMM * 0.78;
+  let text = "";
+  enc.digits.forEach(d => {
+    const size = d.small ? fontMM * 0.85 : fontMM;
+    let x, anchor;
+    if (d.side === "left"){       x = (q.left - 1) * u + bearer;                          anchor = "end"; }
+    else if (d.side === "right"){ x = (q.left + enc.modules.length + 1) * u + bearer;     anchor = "start"; }
+    else {                        x = x0 + (d.at + d.span / 2) * u;                       anchor = "middle"; }
+    text += '<text x="' + x.toFixed(4) + '" y="' + baseY.toFixed(4) + '" text-anchor="' + anchor +
+            '" style="font-family:var(--label-num);font-size:' + size.toFixed(4) +
+            'px;font-weight:700;letter-spacing:' + (u * 0.15).toFixed(4) + 'px">' + esc(d.ch) + "</text>";
+  });
+
+  const w = totalW.toFixed(3), h = totalH.toFixed(3);
+  return '<svg width="' + w + 'mm" height="' + h + 'mm" viewBox="0 0 ' + w + " " + h +
+         '" shape-rendering="crispEdges" role="img" aria-label="' + esc(enc.kind.toUpperCase()) + ' barcode">' +
+         '<rect width="' + w + '" height="' + h + '" fill="#fff"/><g fill="#000">' + frame + bars + "</g>" +
+         '<g fill="#000" shape-rendering="auto">' + text + "</g></svg>";
+}
+
 /* QR code as an SVG string, sized in millimetres.
 
    `codeMM` is the code itself; the quiet zone the standard requires — four
@@ -116,10 +190,18 @@ const DEFAULTS = {
   w:50, h:30, pad:1.4, dpi:203, dark:12, speed:4,
   title:3.3, date:2.7, num:3.0, bar:8, mod:0.38,
   barmode:"width", barw:30, suffix:"lf", fmtv:1,
-  sym:"c128", qrmm:8, qrec:"M",
+  sym:"c128", qrmm:8, qrec:"M", dlbase:"https://id.gs1.org",
   fmt:"mdy", pdl:"PD:", edl:"ED:", shownum:1
 };
-const SYM_NAME = { c128:"Code 128", qr:"QR Code" };
+const SYM_NAME = {
+  c128:"Code 128", gs1128:"GS1-128", ean13:"EAN-13", ean8:"EAN-8",
+  upca:"UPC-A", itf14:"ITF-14", qr:"QR Code", qrdl:"QR Code · GS1 Digital Link"
+};
+/* Which family a symbology belongs to decides how it is drawn and measured.
+   The retail ones draw their own digits and carry their own light margins;
+   the two-dimensional ones are square. */
+const SYM_RETAIL = ["ean13","ean8","upca","itf14"];
+const SYM_2D     = ["qr","qrdl"];
 const LOG_MAX = 2000;
 
 const store = {
@@ -137,7 +219,7 @@ let editingCustomer = null;
 let zoom      = 2;
 
 /* Stock and layout belong to the customer; the printer settings belong to the machine. */
-const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix","sym","qrmm","qrec"];
+const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix","sym","qrmm","qrec","dlbase"];
 const PRINTER_KEYS = ["dpi","dark","speed"];
 
 /* The label profile in force for a customer: its own stock over the house default,
@@ -214,6 +296,7 @@ function currentLabel(){
     code:   $("#f-code").value.trim(),
     copies: Math.max(1, Math.min(500, parseInt($("#f-copies").value, 10) || 1)),
     cust:   $("#f-cust").value,         /* recorded with the run — never rendered on the label */
+    batch:  $("#f-batch") ? $("#f-batch").value.trim() : "",
     /* Carried on the line itself so a queued label prints the code type it was
        queued with, even when the customer's saved stock says otherwise. */
     sym:    $("#f-sym") ? $("#f-sym").value : cfg.sym
@@ -274,87 +357,118 @@ function buildLabel(data, c){
     el.appendChild(d);
   }
 
-  if (data.code && c.sym === "qr"){
-    /* A QR carries exactly what the Code 128 carries — the number and whatever
-       the scanner is set to type after it — so swapping the symbology changes
-       nothing downstream of the scan. */
-    let qr = null;
-    try { qr = qrEncode(payloadOf(data.code, c), { ec: c.qrec || "M" }); }
-    catch(err){ issues.push(["bad", err.message]); }
-    if (qr){
-      const usable = c.w - c.pad * 2, quiet = 4;
-      const withQuiet = s => s * (qr.size + quiet * 2) / qr.size;
-      let side = +c.qrmm || DEFAULTS.qrmm;
-      if (withQuiet(side) > usable){
-        side = usable * qr.size / (qr.size + quiet * 2);
-        issues.push(["warn", "The QR code and its quiet zone are wider than a " + c.w +
-          " mm label — trimmed to " + side.toFixed(1) + " mm. Widen the label or reduce the margin."]);
-      }
-      const u = side / qr.size, dotMM = 25.4 / c.dpi;
-      if (u < dotMM){
-        issues.push(["bad", "Each QR module would be " + u.toFixed(3) + " mm, thinner than one printer dot (" +
-          dotMM.toFixed(3) + " mm). It will not scan — make the code larger."]);
-      } else if (u < 0.33){
-        issues.push(["warn", "QR module " + u.toFixed(3) + " mm is below the 0.33 mm rule of thumb. Test a scan before a long run."]);
-      }
-      const box = document.createElement("div");
-      box.style.marginTop = (c.date * GAP_BARS) + "mm";
-      box.innerHTML = qrSVG(qr, side, quiet);
-      el.appendChild(box);
-      el._qr = qr; el._qrSide = side;
+  if (data.code){
+    /* Every symbology carries the same identity; what differs is how much else
+       travels with it, and who can read it. The label is laid out the same way
+       either way — whatever is drawn here goes in the same slot the bars have
+       always occupied. */
+    const box = document.createElement("div");
+    box.style.marginTop = (c.date * GAP_BARS) + "mm";
+    const usable = c.w - c.pad * 2, dotMM = 25.4 / c.dpi;
+    const gtin = gs1GtinOrNull(data.code);
 
-      if (+c.shownum){
-        const n = document.createElement("div");
-        n.className = "num";
-        n.style.fontSize = c.num + "mm";
-        n.style.marginTop = (c.date * GAP_NUM) + "mm";
-        n.textContent = data.code;
-        el.appendChild(n);
+    if (SYM_2D.indexOf(c.sym) >= 0){
+      let payload = null, qr = null;
+      try {
+        payload = c.sym === "qrdl"
+          ? gs1DigitalLink(c.dlbase, { gtin, batch: data.batch, pd: data.pd, ed: data.ed })
+          : payloadOf(data.code, c);
+        qr = qrEncode(payload, { ec: c.qrec || "M" });
+      } catch(err){ issues.push(["bad", err.message]); }
+      if (qr){
+        const quiet = 4;
+        const withQuiet = s => s * (qr.size + quiet * 2) / qr.size;
+        let side = +c.qrmm || DEFAULTS.qrmm;
+        if (withQuiet(side) > usable){
+          side = usable * qr.size / (qr.size + quiet * 2);
+          issues.push(["warn", "The QR code and its quiet zone are wider than a " + c.w +
+            " mm label — trimmed to " + side.toFixed(1) + " mm. Widen the label or reduce the margin."]);
+        }
+        const u = side / qr.size;
+        if (u < dotMM){
+          issues.push(["bad", "Each QR module would be " + u.toFixed(3) + " mm, thinner than one printer dot (" +
+            dotMM.toFixed(3) + " mm). It will not scan — make the code larger."]);
+        } else if (u < 0.33){
+          issues.push(["warn", "QR module " + u.toFixed(3) + " mm is below the 0.33 mm rule of thumb. Test a scan before a long run."]);
+        }
+        box.innerHTML = qrSVG(qr, side, quiet);
+        el.appendChild(box);
+        el._qr = qr; el._qrSide = side; el._payload = payload;
       }
     }
-  }
-  else if (data.code){
-    let enc = null;
-    try { enc = code128(payloadOf(data.code, c)); } catch(err){ issues.push(["bad", err.message]); }
-    if (enc){
-      const usable = c.w - c.pad * 2;
-      let mod;
-      if (c.barmode === "width"){
-        let target = c.barw;
-        if (target > usable){
-          target = usable;
-          issues.push(["warn", "A " + c.barw + " mm barcode does not fit inside a " + c.w + " mm label — trimmed to " + usable.toFixed(1) + " mm. Widen the label or reduce the margin."]);
-        }
-        mod = target / enc.modules.length;
-      } else {
-        mod = c.mod;
-        if (enc.modules.length * mod > usable){
-          mod = usable / enc.modules.length;
-          issues.push(["warn", "Barcode is wider than the label — bars narrowed to " + mod.toFixed(3) + " mm to fit."]);
-        }
-      }
-      const dotMM = 25.4 / c.dpi;
-      if (mod < dotMM){
-        issues.push(["bad", "Module width " + mod.toFixed(3) + " mm is thinner than one printer dot (" + dotMM.toFixed(3) + " mm). Bars will print unevenly and may not scan."]);
-      } else if (mod < 0.25){
-        issues.push(["warn", "Module width " + mod.toFixed(3) + " mm is below the 0.25 mm rule of thumb — widen the barcode or shorten the number. Test a scan before a long run."]);
-      }
-      if (c.bar < 8) issues.push(["warn", "Barcode height " + c.bar + " mm is short; 8 mm or more scans more reliably."]);
 
-      const box = document.createElement("div");
-      box.style.marginTop = (c.date * GAP_BARS) + "mm";
-      box.innerHTML = barcodeSVG(enc.modules, mod, c.bar);
-      el.appendChild(box);
-      el._enc = enc; el._mod = mod;
-
-      if (+c.shownum){
-        const n = document.createElement("div");
-        n.className = "num";
-        n.style.fontSize = c.num + "mm";
-        n.style.marginTop = (c.date * GAP_NUM) + "mm";
-        n.textContent = data.code;
-        el.appendChild(n);
+    else if (SYM_RETAIL.indexOf(c.sym) >= 0){
+      let enc = null;
+      try { enc = eanEncode(c.sym, data.code); } catch(err){ issues.push(["bad", err.message]); }
+      if (enc){
+        /* The light margins are part of the symbol, so the width that has to
+           fit the label is the whole element, not just the bars. */
+        const total = enc.modules.length + enc.quiet.left + enc.quiet.right;
+        let barW = Math.min(+c.barw || usable, usable * enc.modules.length / total);
+        const mod = barW / enc.modules.length;
+        if (mod < dotMM){
+          issues.push(["bad", "Module width " + mod.toFixed(3) + " mm is thinner than one printer dot (" +
+            dotMM.toFixed(3) + " mm). A retail code printed this small will be rejected at the till."]);
+        } else if (mod < 0.264){
+          issues.push(["warn", "Module width " + mod.toFixed(3) + " mm is below the 80% magnification retail asks for (0.264 mm). Widen the code or use a larger label."]);
+        }
+        if (c.bar < 8) issues.push(["warn", "Barcode height " + c.bar + " mm is short; 8 mm or more scans more reliably."]);
+        box.innerHTML = retailSVG(enc, barW, c.bar, c.num);
+        el.appendChild(box);
+        el._enc = enc; el._mod = mod; el._retail = enc;
+        return { el, issues };            /* the digits are part of the symbol */
       }
+    }
+
+    else {
+      const gs1 = c.sym === "gs1128";
+      let enc = null, parts = null, payload = null;
+      try {
+        if (gs1){
+          const built = gs1Elements({ gtin, code: data.code, batch: data.batch, pd: data.pd, ed: data.ed });
+          parts = built.parts; payload = built.data;
+          if (!payload) throw new Error("There is nothing to put in a GS1-128 yet — enter a barcode number, and a production or expiry date.");
+          enc = code128(payload, true);
+        } else {
+          payload = payloadOf(data.code, c);
+          enc = code128(payload);
+        }
+      } catch(err){ issues.push(["bad", err.message]); }
+      if (enc){
+        let mod;
+        if (c.barmode === "width"){
+          let target = c.barw;
+          if (target > usable){
+            target = usable;
+            issues.push(["warn", "A " + c.barw + " mm barcode does not fit inside a " + c.w + " mm label — trimmed to " + usable.toFixed(1) + " mm. Widen the label or reduce the margin."]);
+          }
+          mod = target / enc.modules.length;
+        } else {
+          mod = c.mod;
+          if (enc.modules.length * mod > usable){
+            mod = usable / enc.modules.length;
+            issues.push(["warn", "Barcode is wider than the label — bars narrowed to " + mod.toFixed(3) + " mm to fit."]);
+          }
+        }
+        if (mod < dotMM){
+          issues.push(["bad", "Module width " + mod.toFixed(3) + " mm is thinner than one printer dot (" + dotMM.toFixed(3) + " mm). Bars will print unevenly and may not scan."]);
+        } else if (mod < 0.25){
+          issues.push(["warn", "Module width " + mod.toFixed(3) + " mm is below the 0.25 mm rule of thumb — widen the barcode or shorten the number. Test a scan before a long run."]);
+        }
+        if (c.bar < 8) issues.push(["warn", "Barcode height " + c.bar + " mm is short; 8 mm or more scans more reliably."]);
+        box.innerHTML = barcodeSVG(enc.modules, mod, c.bar);
+        el.appendChild(box);
+        el._enc = enc; el._mod = mod; el._parts = parts; el._payload = payload;
+      }
+    }
+
+    if (el.contains(box) && +c.shownum){
+      const n = document.createElement("div");
+      n.className = "num";
+      n.style.fontSize = c.num + "mm";
+      n.style.marginTop = (c.date * GAP_NUM) + "mm";
+      n.textContent = data.code;
+      el.appendChild(n);
     }
   }
   return { el, issues };
@@ -394,47 +508,89 @@ function buildZPL(data, copies, c){
         y += Math.round(fh * LINE);
       });
   }
-  if (data.code && c.sym === "qr"){
-    let qr = null;
-    try { qr = qrEncode(payloadOf(data.code, c), { ec: c.qrec || "M" }); } catch(e){ qr = null; }
-    if (qr){
-      /* ^BQ sizes a QR by whole-dot magnification, so the printed code is the
-         nearest multiple of the module count rather than exactly qrmm. The
-         printer runs its own encoder; it is handed the same text and the same
-         error-correction level, so it lands on the same version. */
-      const usable = c.w - c.pad * 2, quiet = 4;
-      const side = Math.min(+c.qrmm || DEFAULTS.qrmm, usable * qr.size / (qr.size + quiet * 2));
-      const mag  = Math.max(1, Math.min(10, Math.round(mm2dots(side, c) / qr.size)));
-      const codeDots = mag * qr.size;
-      const x = Math.max(0, Math.round((W - codeDots) / 2));
-      y += mm2dots(c.date * GAP_BARS, c) + mag * quiet;
-      L.push("^FO" + x + "," + y + "^BQN,2," + mag + "," + (c.qrec || "M") + ",7");
-      const zdata = data.code + (SUFFIX[c.suffix] || "").replace(/[\s\S]/g, ch => "_" + ch.charCodeAt(0).toString(16).padStart(2,"0"));
-      L.push("^FH_^FD" + (c.qrec || "M") + "A," + zdata + "^FS");
-      y += codeDots + mag * quiet;
-      if (+c.shownum){
-        const fh = mm2dots(c.num, c);
-        y += mm2dots(c.date * GAP_NUM, c);
-        L.push("^FO" + PAD + "," + y + "^A0N," + fh + "," + Math.round(fh*0.6) +
-               "^FB" + (W - PAD*2) + ",1,0,C,0^FD" + data.code + "^FS");
+  if (data.code){
+    const usable = c.w - c.pad * 2;
+    const gtin = gs1GtinOrNull(data.code);
+    const hex = s => String(s).replace(/[\x00-\x1f\\^~]/g, ch => "_" + ch.charCodeAt(0).toString(16).padStart(2,"0"));
+
+    if (SYM_2D.indexOf(c.sym) >= 0){
+      let payload = null, qr = null;
+      try {
+        payload = c.sym === "qrdl"
+          ? gs1DigitalLink(c.dlbase, { gtin, batch: data.batch, pd: data.pd, ed: data.ed })
+          : payloadOf(data.code, c);
+        qr = qrEncode(payload, { ec: c.qrec || "M" });
+      } catch(e){ qr = null; }
+      if (qr){
+        /* ^BQ sizes a QR by whole-dot magnification, so the printed code is the
+           nearest multiple of the module count rather than exactly qrmm. The
+           printer runs its own encoder; it is handed the same text and the same
+           error-correction level, so it lands on the same version. */
+        const quiet = 4;
+        const side = Math.min(+c.qrmm || DEFAULTS.qrmm, usable * qr.size / (qr.size + quiet * 2));
+        const mag  = Math.max(1, Math.min(10, Math.round(mm2dots(side, c) / qr.size)));
+        const codeDots = mag * qr.size;
+        const x = Math.max(0, Math.round((W - codeDots) / 2));
+        y += mm2dots(c.date * GAP_BARS, c) + mag * quiet;
+        L.push("^FO" + x + "," + y + "^BQN,2," + mag + "," + (c.qrec || "M") + ",7");
+        L.push("^FH_^FD" + (c.qrec || "M") + "A," + hex(payload) + "^FS");
+        y += codeDots + mag * quiet;
       }
     }
-  }
-  else if (data.code){
-    let enc = null;
-    try { enc = code128(payloadOf(data.code, c)); } catch(e){ enc = null; }
-    if (enc){
-      const usable = c.w - c.pad * 2;
-      const mod = (c.barmode === "width")
-        ? Math.min(c.barw, usable) / enc.modules.length
-        : Math.min(c.mod, usable / enc.modules.length);
-      const modDots = Math.max(1, Math.round(mm2dots(mod, c)));
-      const bw = enc.modules.length * modDots;
-      const x  = Math.max(0, Math.round((W - bw) / 2));
-      y += mm2dots(c.date * GAP_BARS, c);
-      L.push("^BY" + modDots + ",3.0," + mm2dots(c.bar, c));
-      const zdata = data.code + (SUFFIX[c.suffix] || "").replace(/[\s\S]/g, ch => "_" + ch.charCodeAt(0).toString(16).padStart(2,"0"));
-      L.push("^FO" + x + "," + y + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N^FH_^FD" + zdata + "^FS");
+
+    else if (SYM_RETAIL.indexOf(c.sym) >= 0){
+      let enc = null;
+      try { enc = eanEncode(c.sym, data.code); } catch(e){ enc = null; }
+      if (enc){
+        /* The printer draws the guard bars and the digits itself, so it is sent
+           the number rather than the pattern. ^BY sets the module width. */
+        const total = enc.modules.length + enc.quiet.left + enc.quiet.right;
+        const barW = Math.min(+c.barw || usable, usable * enc.modules.length / total);
+        const modDots = Math.max(1, Math.round(mm2dots(barW / enc.modules.length, c)));
+        const bw = enc.modules.length * modDots;
+        const x  = Math.max(0, Math.round((W - bw) / 2));
+        y += mm2dots(c.date * GAP_BARS, c);
+        L.push("^BY" + modDots + ",3.0," + mm2dots(c.bar, c));
+        const cmd = { ean13:"^BEN,", ean8:"^B8N,", upca:"^BUN,", itf14:"^B2N," }[c.sym];
+        const tail = c.sym === "itf14"
+          ? mm2dots(c.bar, c) + ",Y,N,Y"          /* ITF-14: print the number, draw the bearer bar */
+          : mm2dots(c.bar, c) + ",Y,N";
+        L.push("^FO" + x + "," + y + cmd + tail + "^FD" + enc.text + "^FS");
+        y += mm2dots(c.bar, c) + mm2dots(c.num * 1.2, c);
+        return L.concat(["^PQ" + (copies || 1) + ",0,0,N", "^XZ"]).join("\n");
+      }
+    }
+
+    else {
+      const gs1 = c.sym === "gs1128";
+      let enc = null, payload = null;
+      try {
+        if (gs1){
+          payload = gs1Elements({ gtin, code: data.code, batch: data.batch, pd: data.pd, ed: data.ed }).data;
+          enc = payload ? code128(payload, true) : null;
+        } else {
+          payload = payloadOf(data.code, c);
+          enc = code128(payload);
+        }
+      } catch(e){ enc = null; }
+      if (enc){
+        const mod = (c.barmode === "width")
+          ? Math.min(c.barw, usable) / enc.modules.length
+          : Math.min(c.mod, usable / enc.modules.length);
+        const modDots = Math.max(1, Math.round(mm2dots(mod, c)));
+        const bw = enc.modules.length * modDots;
+        const x  = Math.max(0, Math.round((W - bw) / 2));
+        y += mm2dots(c.date * GAP_BARS, c);
+        L.push("^BY" + modDots + ",3.0," + mm2dots(c.bar, c));
+        if (gs1){
+          /* ^BC's "A" mode makes it a GS1-128: the printer inserts FNC1 and
+             checks the identifiers rather than taking the string on trust. */
+          L.push("^FO" + x + "," + y + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N,A" +
+                 "^FD" + payload.split(FNC1).join(">8") + "^FS");
+        } else {
+          L.push("^FO" + x + "," + y + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N^FH_^FD" + hex(payload) + "^FS");
+        }
+      }
     }
   }
   L.push("^PQ" + (copies || 1) + ",0,0,N");
@@ -497,12 +653,32 @@ function renderPreview(){
   const bw  = el._enc ? el._enc.modules.length * mod : 0;
   const spec =
     '<span>label <b>' + cfg.w + " × " + cfg.h + '</b> mm</span>' +
+    '<span><b>' + (SYM_NAME[cfg.sym] || SYM_NAME.c128) + "</b></span>" +
     (qr  ? '<span>QR <b>' + el._qrSide.toFixed(1) + " × " + el._qrSide.toFixed(1) + '</b> mm</span>' : "") +
     (bw  ? '<span>barcode <b>' + bw.toFixed(1) + " × " + Number(cfg.bar).toFixed(1) + '</b> mm</span>' : "") +
     '<span>module <b>' + mod.toFixed(3) + '</b> mm</span>' +
     '<span><b>' + cfg.dpi + '</b> dpi</span>' +
     (qr ? '<span>version <b>' + qr.version + "</b> · <b>" + qr.ec + '</b></span>' : "") +
     (el._enc ? '<span><b>' + el._enc.modules.length + '</b> modules</span>' : "");
+
+  /* What is actually in the code, spelled out. A GS1-128 or a Digital Link
+     carries several fields, and the only way to be sure the right ones went in
+     is to be shown them. */
+  const car = $("#carries");
+  if (car){
+    let html = "";
+    if (el._parts && el._parts.length){
+      html = '<div class="carries"><b>This barcode carries</b>' + el._parts.map(p =>
+        '<div><span class="ai">(' + p.ai + ")</span> " + esc(p.name) + " <b>" + esc(p.value) + "</b></div>").join("") + "</div>";
+    } else if (cfg.sym === "qrdl" && el._payload){
+      html = '<div class="carries"><b>This QR opens</b><div class="mono">' + esc(el._payload) + "</div></div>";
+    } else if (el._retail){
+      html = '<div class="carries"><b>This barcode carries</b><div>' + SYM_NAME[cfg.sym] + " <b>" +
+             esc(el._retail.text) + "</b> — the last digit is the check digit.</div></div>";
+    }
+    car.innerHTML = html;
+    if ($("#carries2")) $("#carries2").innerHTML = html;
+  }
   $("#specs").innerHTML = spec;
   if ($("#specs2")) $("#specs2").innerHTML = spec;
 
@@ -517,6 +693,12 @@ function renderPreview(){
         dots + " dot" + (dots === 1 ? "" : "s") + " at " + cfg.dpi + " dpi). A quiet zone of four modules is kept " +
         "clear on every side, which is why the code takes up more room than its size suggests. A higher error " +
         "correction level survives more smudging but needs a larger code for the same number.";
+    } else if (el._retail){
+      const pct = (mod / 0.33 * 100);
+      ro.innerHTML = "A retail code is measured as a percentage of its nominal size. At <b>" + mod.toFixed(3) +
+        " mm</b> a module this one is printed at <b>" + pct.toFixed(0) + "%</b> magnification (" + dots + " dot" +
+        (dots === 1 ? "" : "s") + " at " + cfg.dpi + " dpi); shops normally require <b>80% to 200%</b>. The light " +
+        "margins on either side are part of the symbol — printing anything into them stops it scanning.";
     } else {
       const printed = el._enc ? (el._enc.modules.length * dots * 25.4 / cfg.dpi) : 0;
       ro.innerHTML = el._enc

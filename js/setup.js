@@ -5,7 +5,7 @@ const CFG_FIELDS = {
   "s-w":"w","s-h":"h","s-pad":"pad","s-dpi":"dpi","s-dark":"dark","s-speed":"speed",
   "s-title":"title","s-date":"date","s-num":"num","s-bar":"bar","s-mod":"mod",
   "s-barmode":"barmode","s-barw":"barw","s-suffix":"suffix",
-  "s-sym":"sym","s-qrmm":"qrmm","s-qrec":"qrec",
+  "s-sym":"sym","s-qrmm":"qrmm","s-qrec":"qrec","s-dlbase":"dlbase",
   "s-fmt":"fmt","s-pdl":"pdl","s-edl":"edl","s-shownum":"shownum"
 };
 function cfgToForm(){
@@ -19,19 +19,26 @@ function cfgToForm(){
 /* In "width" mode the module width is a result, not an input — show it, don't accept it.
    And only one symbology's measurements are worth showing at a time. */
 function syncBarMode(){
-  const qr = cfg.sym === "qr";
+  const qr     = SYM_2D.indexOf(cfg.sym) >= 0;
+  const retail = SYM_RETAIL.indexOf(cfg.sym) >= 0;
+  const gs1    = cfg.sym === "gs1128";
   const byWidth = cfg.barmode === "width";
   $("#fld-mod").classList.toggle("off", byWidth);
   $("#s-mod").disabled = byWidth;
   $("#fld-barw").classList.toggle("off", !byWidth);
   $("#s-barw").disabled = !byWidth;
-  /* Only one symbology's measurements are worth showing at a time; the other
-     set is hidden outright rather than dimmed, which is reserved for a field
-     that is a result rather than an input. */
-  [["#fld-barmode", qr], ["#fld-barw", qr], ["#fld-bar", qr], ["#fld-mod", qr],
-   ["#fld-qrmm", !qr], ["#fld-qrec", !qr]].forEach(([sel, hide]) => {
+  /* Only the measurements that belong to the chosen code are shown. Hidden
+     outright rather than dimmed — dimming is reserved for a field that is a
+     result rather than an input. A retail code has a fixed pattern, so its
+     width is the only thing to set; the sizing method does not apply. */
+  [["#fld-barmode", qr || retail], ["#fld-barw", qr], ["#fld-bar", qr], ["#fld-mod", qr || retail],
+   ["#fld-qrmm", !qr], ["#fld-qrec", !qr], ["#fld-dlbase", cfg.sym !== "qrdl"],
+   ["#fld-suffix", qr || retail || gs1]].forEach(([sel, hide]) => {
     const el = $(sel); if (el) el.hidden = hide;
   });
+  /* The batch only reaches a code that has somewhere to put it. */
+  const batch = $("#fld-batch");
+  if (batch) batch.hidden = !(gs1 || cfg.sym === "qrdl");
 }
 function formToCfg(){
   for (const id in CFG_FIELDS){
@@ -94,7 +101,11 @@ function currentEnc(){
    largest size that still fits the label is the one that gets used. */
 function fitProfile(p, data){
   p.pad  = Math.max(0.8, Math.round(p.w * 0.026 * 10) / 10);
-  p.barw = Math.round(Math.min(p.w * R_BARW, p.w - p.pad * 2) * 10) / 10;
+  /* The sample label's barcode takes about two thirds of the width. GS1-128 is
+     far longer than a bare number and a retail code carries light margins that
+     count against the same space, so both are given everything there is. */
+  const share = (p.sym === "gs1128" || SYM_RETAIL.indexOf(p.sym) >= 0) ? 1 : R_BARW;
+  p.barw = Math.round(Math.min(p.w * share, p.w - p.pad * 2) * 10) / 10;
   const apply = s => {
     p.title = Math.round(s * 100) / 100;
     p.date  = p.title;
