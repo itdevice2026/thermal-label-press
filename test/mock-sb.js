@@ -208,8 +208,10 @@
   };
 
   P.update = async function(tbl, match, patch){
-    /* the trail has no policy for this — not even for an administrator */
-    if (tbl === "lbl_activity"){ const e = new Error("permission denied for lbl_activity"); e.status = 401; throw e; }
+    /* The trail has no update policy, for anybody. PostgREST answers a write
+       that row-level security filters away with success and no rows, not an
+       error — so the thing to check is that nothing changed, not that it threw. */
+    if (tbl === "lbl_activity") return [];
     if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
       const u = this.user();
       const rows = table(tbl).filter(r => matches(r, match));
@@ -232,8 +234,7 @@
   };
 
   P.remove = async function(tbl, match){
-    /* the trail has no policy for this — not even for an administrator */
-    if (tbl === "lbl_activity"){ const e = new Error("permission denied for lbl_activity"); e.status = 401; throw e; }
+    if (tbl === "lbl_activity") return [];        /* no delete policy either */
     if (APPROVABLE.indexOf(tbl) >= 0 && role(this) === "operator"){
       const u = this.user();
       const rows = table(tbl).filter(r => matches(r, match));

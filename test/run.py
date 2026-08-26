@@ -413,12 +413,18 @@ with sync_playwright() as p:
     check("and cannot write to it directly", pg.evaluate(
         "(async()=>{try{await sb.insert('lbl_activity',[{actor_id:me.id,actor_name:'Nomer Santos',action:'forged'}]);return 'ALLOWED'}catch(e){return 'blocked'}})()"),
         "blocked")
+    # A write the database filters away comes back as success with no rows, not
+    # as an error — so what matters is that the rows did not move, not that it threw.
     check("nor change what is there", pg.evaluate(
-        "(async()=>{try{await sb.update('lbl_activity','id=gt.0',{action:'tampered'});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
-        "blocked")
+        "(async()=>{const was=JSON.stringify(__DB.lbl_activity.map(r=>r.action));"
+        "try{await sb.update('lbl_activity','id=gt.0',{action:'tampered'})}catch(e){}"
+        "return JSON.stringify(__DB.lbl_activity.map(r=>r.action))===was ? 'unchanged' : 'TAMPERED'})()"),
+        "unchanged")
     check("nor delete it", pg.evaluate(
-        "(async()=>{try{await sb.remove('lbl_activity','id=gt.0');return 'ALLOWED'}catch(e){return 'blocked'}})()"),
-        "blocked")
+        "(async()=>{const n=__DB.lbl_activity.length;"
+        "try{await sb.remove('lbl_activity','id=gt.0')}catch(e){}"
+        "return __DB.lbl_activity.length===n ? 'all still there' : 'ROWS LOST'})()"),
+        "all still there")
 
     # ---- operator proposes; admin approves ----
     pg.click('[data-tab="products"]'); pg.wait_for_timeout(400)
@@ -523,11 +529,16 @@ with sync_playwright() as p:
 
     # even an administrator may not rewrite it
     check("an administrator cannot change the trail either", pg.evaluate(
-        "(async()=>{try{await sb.update('lbl_activity','id=gt.0',{action:'tampered'});return 'ALLOWED'}catch(e){return 'blocked'}})()"),
-        "blocked")
+        "(async()=>{const was=JSON.stringify(__DB.lbl_activity.map(r=>r.action));"
+        "try{await sb.update('lbl_activity','id=gt.0',{action:'tampered'})}catch(e){}"
+        "return JSON.stringify(__DB.lbl_activity.map(r=>r.action))===was ? 'unchanged' : 'TAMPERED'})()"),
+        "unchanged")
     check("nor delete from it", pg.evaluate(
-        "(async()=>{try{await sb.remove('lbl_activity','id=gt.0');return 'ALLOWED'}catch(e){return 'blocked'}})()"),
-        "blocked")
+        "(async()=>{const n=__DB.lbl_activity.length;"
+        "try{await sb.remove('lbl_activity','id=gt.0')}catch(e){}"
+        "return __DB.lbl_activity.length===n ? 'all still there' : 'ROWS LOST'})()"),
+        "all still there")
+    check("and the entries survived the whole run", pg.evaluate("__DB.lbl_activity.length > 10"), True)
     pg.screenshot(path="/home/claude/repo/test/shot-operator.png", full_page=True)
     b.close()
 
