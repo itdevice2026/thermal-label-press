@@ -329,6 +329,9 @@ $("#s-preset").addEventListener("change", e => {
 Object.keys(CFG_FIELDS).forEach(id => {
   if (id !== "s-barmode" && id !== "s-sym") $("#" + id).addEventListener("input", formToCfg);
 });
+/* The gap only applies once there are two labels side by side, so the field
+   comes and goes with the count. */
+$("#s-cols").addEventListener("change", syncBarMode);
 
 /* Choosing the code type. It belongs to the stock, like every other measurement
    on this tab, so it is remembered against whichever company is selected.

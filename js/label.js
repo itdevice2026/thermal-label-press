@@ -191,6 +191,7 @@ const DEFAULTS = {
   title:3.3, date:2.7, num:3.0, bar:8, mod:0.38,
   barmode:"width", barw:30, suffix:"lf", fmtv:1,
   sym:"c128", qrmm:8, qrec:"M", dlbase:"https://id.gs1.org",
+  cols:1, colgap:2,
   fmt:"mdy", pdl:"PD:", edl:"ED:", shownum:1
 };
 const SYM_NAME = {
@@ -248,7 +249,7 @@ let editingCustomer = null;
 let zoom      = 2;
 
 /* Stock and layout belong to the customer; the printer settings belong to the machine. */
-const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix","sym","qrmm","qrec","dlbase"];
+const STOCK_KEYS   = ["w","h","pad","title","date","num","bar","mod","barmode","barw","fmt","pdl","edl","shownum","suffix","sym","qrmm","qrec","dlbase","cols","colgap"];
 const PRINTER_KEYS = ["dpi","dark","speed"];
 
 /* The label profile in force for a customer: its own stock over the house default,
@@ -346,6 +347,17 @@ const R_BARW   = 0.649;   // barcode width, × label width
 const SUFFIX = { "":"", lf:"\n", cr:"\r", crlf:"\r\n", tab:"\t" };
 function payloadOf(code, c){ return code + (SUFFIX[(c || cfg).suffix] || ""); }
 const R_FILL   = 0.90;    // how much of the label height the printed block fills
+
+/* Die-cut stock often comes two or three labels across. The label itself does
+   not change; the page the printer sees does — it is the whole web, and each
+   printed page carries a row of them. */
+function acrossOf(c){ return Math.max(1, Math.min(4, Math.round(+(c || cfg).cols) || 1)); }
+function gapOf(c){ return acrossOf(c) > 1 ? Math.max(0, +(c || cfg).colgap || 0) : 0; }
+function webWidth(c){
+  c = c || cfg;
+  const n = acrossOf(c);
+  return Math.round((c.w * n + gapOf(c) * (n - 1)) * 100) / 100;
+}
 
 /* Builds one .label element. Returns {el, issues:[]} */
 function buildLabel(data, c){
@@ -510,37 +522,40 @@ function mm2dots(mm, c){ return Math.round(mm * (c || cfg).dpi / 25.4); }
 
 function buildZPL(data, copies, c){
   c = c || cfg;
-  const W = mm2dots(c.w, c), H = mm2dots(c.h, c), PAD = mm2dots(c.pad, c);
-  const L = [];
-  L.push("^XA");
-  L.push("^CI28");                       // UTF-8
-  L.push("^PW" + W);
-  L.push("^LL" + H);
-  L.push("^LH0,0");
-  L.push("^MD" + c.dark);
-  L.push("^PR" + c.speed);
+  const across = acrossOf(c), gapDots = mm2dots(gapOf(c), c);
+  const LW = mm2dots(c.w, c);                    /* one label */
+  const W  = mm2dots(webWidth(c), c);            /* the whole web the printer feeds */
+  const H = mm2dots(c.h, c), PAD = mm2dots(c.pad, c);
 
-  let y = PAD;
-  const fhT = mm2dots(c.title, c), pitch = Math.round(fhT * LINE);
-  [data.name, data.size].filter(Boolean).forEach(line => {
-    const lines = Math.max(1, Math.ceil(line.length * c.title * 0.6 / (c.w - c.pad * 2)));
-    L.push("^FO" + PAD + "," + y + "^A0N," + fhT + "," + Math.round(fhT*0.6) +
-           "^FB" + (W - PAD*2) + "," + lines + ",0,C,0^FD" + line + "^FS");
-    y += pitch * lines;
-  });
-  if (data.pd || data.ed){
-    const fh = mm2dots(c.date, c);
-    [data.pd && (c.pdl + " " + fmtDate(data.pd, c)), data.ed && (c.edl + " " + fmtDate(data.ed, c))]
-      .filter(Boolean).forEach(line => {
-        L.push("^FO" + PAD + "," + y + "^A0N," + fh + "," + Math.round(fh*0.6) +
-               "^FB" + (W - PAD*2) + ",1,0,C,0^FD" + line + "^FS");
-        y += Math.round(fh * LINE);
-      });
-  }
-  if (data.code){
+  /* One label's worth of fields, drawn at an offset. On stock two or three
+     across, the same block is emitted once per column: the printer's page is
+     the web, but each label's content has to stay inside its own die cut. */
+  function column(x0){
+    const L = [];
+    let y = PAD;
+    const inner = LW - PAD * 2;
+    const fhT = mm2dots(c.title, c), pitch = Math.round(fhT * LINE);
+    [data.name, data.size].filter(Boolean).forEach(line => {
+      const lines = Math.max(1, Math.ceil(line.length * c.title * 0.6 / (c.w - c.pad * 2)));
+      L.push("^FO" + (x0 + PAD) + "," + y + "^A0N," + fhT + "," + Math.round(fhT*0.6) +
+             "^FB" + inner + "," + lines + ",0,C,0^FD" + line + "^FS");
+      y += pitch * lines;
+    });
+    if (data.pd || data.ed){
+      const fh = mm2dots(c.date, c);
+      [data.pd && (c.pdl + " " + fmtDate(data.pd, c)), data.ed && (c.edl + " " + fmtDate(data.ed, c))]
+        .filter(Boolean).forEach(line => {
+          L.push("^FO" + (x0 + PAD) + "," + y + "^A0N," + fh + "," + Math.round(fh*0.6) +
+                 "^FB" + inner + ",1,0,C,0^FD" + line + "^FS");
+          y += Math.round(fh * LINE);
+        });
+    }
+    if (!data.code) return L;
+
     const usable = c.w - c.pad * 2;
     const gtin = gs1GtinOrNull(data.code);
     const hex = s => String(s).replace(/[\x00-\x1f\\^~]/g, ch => "_" + ch.charCodeAt(0).toString(16).padStart(2,"0"));
+    const centre = width => x0 + Math.max(0, Math.round((LW - width) / 2));
 
     if (SYM_2D.indexOf(c.sym) >= 0){
       let payload = null, qr = null;
@@ -559,9 +574,8 @@ function buildZPL(data, copies, c){
         const side = Math.min(+c.qrmm || DEFAULTS.qrmm, usable * qr.size / (qr.size + quiet * 2));
         const mag  = Math.max(1, Math.min(10, Math.round(mm2dots(side, c) / qr.size)));
         const codeDots = mag * qr.size;
-        const x = Math.max(0, Math.round((W - codeDots) / 2));
         y += mm2dots(c.date * GAP_BARS, c) + mag * quiet;
-        L.push("^FO" + x + "," + y + "^BQN,2," + mag + "," + (c.qrec || "M") + ",7");
+        L.push("^FO" + centre(codeDots) + "," + y + "^BQN,2," + mag + "," + (c.qrec || "M") + ",7");
         L.push("^FH_^FD" + (c.qrec || "M") + "A," + hex(payload) + "^FS");
         y += codeDots + mag * quiet;
       }
@@ -576,18 +590,15 @@ function buildZPL(data, copies, c){
         const total = enc.modules.length + enc.quiet.left + enc.quiet.right;
         const barW = Math.min(+c.barw || usable, usable * enc.modules.length / total);
         const modDots = Math.max(1, Math.round(mm2dots(barW / enc.modules.length, c)));
-        const bw = enc.modules.length * modDots;
-        const x  = Math.max(0, Math.round((W - bw) / 2));
         y += mm2dots(c.date * GAP_BARS, c);
         L.push("^BY" + modDots + ",3.0," + mm2dots(c.bar, c));
         const cmd = { ean13:"^BEN,", ean8:"^B8N,", upca:"^BUN,", itf14:"^B2N," }[c.sym];
         const tail = c.sym === "itf14"
           ? mm2dots(c.bar, c) + ",Y,N,Y"          /* ITF-14: print the number, draw the bearer bar */
           : mm2dots(c.bar, c) + ",Y,N";
-        L.push("^FO" + x + "," + y + cmd + tail + "^FD" + enc.text + "^FS");
-        y += mm2dots(c.bar, c) + mm2dots(c.num * 1.2, c);
-        return L.concat(["^PQ" + (copies || 1) + ",0,0,N", "^XZ"]).join("\n");
+        L.push("^FO" + centre(enc.modules.length * modDots) + "," + y + cmd + tail + "^FD" + enc.text + "^FS");
       }
+      return L;                                    /* a retail code prints its own digits */
     }
 
     else {
@@ -607,22 +618,26 @@ function buildZPL(data, copies, c){
           ? Math.min(c.barw, usable) / enc.modules.length
           : Math.min(c.mod, usable / enc.modules.length);
         const modDots = Math.max(1, Math.round(mm2dots(mod, c)));
-        const bw = enc.modules.length * modDots;
-        const x  = Math.max(0, Math.round((W - bw) / 2));
         y += mm2dots(c.date * GAP_BARS, c);
         L.push("^BY" + modDots + ",3.0," + mm2dots(c.bar, c));
+        const at = "^FO" + centre(enc.modules.length * modDots) + "," + y;
         if (gs1){
           /* ^BC's "A" mode makes it a GS1-128: the printer inserts FNC1 and
              checks the identifiers rather than taking the string on trust. */
-          L.push("^FO" + x + "," + y + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N,A" +
+          L.push(at + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N,A" +
                  "^FD" + payload.split(FNC1).join(">8") + "^FS");
         } else {
-          L.push("^FO" + x + "," + y + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N^FH_^FD" + hex(payload) + "^FS");
+          L.push(at + "^BCN," + mm2dots(c.bar, c) + "," + (+c.shownum ? "Y" : "N") + ",N,N^FH_^FD" + hex(payload) + "^FS");
         }
       }
     }
+    return L;
   }
-  L.push("^PQ" + (copies || 1) + ",0,0,N");
+
+  const L = ["^XA", "^CI28", "^PW" + W, "^LL" + H, "^LH0,0", "^MD" + c.dark, "^PR" + c.speed];
+  for (let n = 0; n < across; n++) L.push.apply(L, column(n * (LW + gapDots)));
+  /* ^PQ counts what the printer feeds, and it feeds a whole row at a time. */
+  L.push("^PQ" + Math.max(1, Math.ceil((copies || 1) / across)) + ",0,0,N");
   L.push("^XZ");
   return L.join("\n");
 }
@@ -682,6 +697,9 @@ function renderPreview(){
   const bw  = el._enc ? el._enc.modules.length * mod : 0;
   const spec =
     '<span>label <b>' + cfg.w + " × " + cfg.h + '</b> mm</span>' +
+    (acrossOf(cfg) > 1
+      ? '<span><b>' + acrossOf(cfg) + '</b> across · roll <b>' + webWidth(cfg) + '</b> mm</span>'
+      : "") +
     '<span><b>' + (SYM_NAME[cfg.sym] || SYM_NAME.c128) + "</b></span>" +
     (qr  ? '<span>QR <b>' + el._qrSide.toFixed(1) + " × " + el._qrSide.toFixed(1) + '</b> mm</span>' : "") +
     (bw  ? '<span>barcode <b>' + bw.toFixed(1) + " × " + Number(cfg.bar).toFixed(1) + '</b> mm</span>' : "") +

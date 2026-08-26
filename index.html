@@ -415,6 +415,7 @@
                 <option value="50x25">50 × 25 mm  (2.0 × 1.0 in)</option>
                 <option value="57x32">57 × 32 mm</option>
                 <option value="60x40">60 × 40 mm</option>
+                <option value="43x33">43 × 33 mm</option>
                 <option value="40x30">40 × 30 mm</option>
                 <option value="76x51">76 × 51 mm  (3.0 × 2.0 in)</option>
                 <option value="100x50">100 × 50 mm (4.0 × 2.0 in)</option>
@@ -429,6 +430,17 @@
             </div>
             <div class="field"><label for="s-dark">Darkness (ZPL)</label><input type="number" id="s-dark" class="mono" min="0" max="30" step="1"></div>
             <div class="field"><label for="s-speed">Print speed (ips)</label><input type="number" id="s-speed" class="mono" min="2" max="12" step="1"></div>
+            <div class="field" id="fld-cols" style="grid-column:span 2">
+              <label for="s-cols">Labels across the roll</label>
+              <select id="s-cols">
+                <option value="1">1 — one label per row</option>
+                <option value="2">2 — two side by side</option>
+                <option value="3">3 — three side by side</option>
+                <option value="4">4 — four side by side</option>
+              </select>
+              <span class="hint">Count the labels sitting side by side across the width of the roll, not the labels down its length. The width above is one label, not the whole roll.</span>
+            </div>
+            <div class="field" id="fld-colgap"><label for="s-colgap">Gap between them (mm)</label><input type="number" id="s-colgap" class="mono" step="0.5" min="0"></div>
           </div>
         </div>
       </div>

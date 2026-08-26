@@ -6,7 +6,8 @@ const CFG_FIELDS = {
   "s-title":"title","s-date":"date","s-num":"num","s-bar":"bar","s-mod":"mod",
   "s-barmode":"barmode","s-barw":"barw","s-suffix":"suffix",
   "s-sym":"sym","s-qrmm":"qrmm","s-qrec":"qrec","s-dlbase":"dlbase",
-  "s-fmt":"fmt","s-pdl":"pdl","s-edl":"edl","s-shownum":"shownum"
+  "s-fmt":"fmt","s-pdl":"pdl","s-edl":"edl","s-shownum":"shownum",
+  "s-cols":"cols","s-colgap":"colgap"
 };
 function cfgToForm(){
   for (const id in CFG_FIELDS) $("#" + id).value = cfg[CFG_FIELDS[id]];
@@ -38,11 +39,19 @@ function syncBarMode(){
   /* The batch only reaches a code that has somewhere to put it. */
   const batch = $("#fld-batch");
   if (batch) batch.hidden = !(gs1 || cfg.sym === "qrdl");
+  /* A gap only means something once there is a neighbour to leave room for. */
+  const gapf = $("#fld-colgap");
+  if (gapf) gapf.hidden = acrossOf(cfg) < 2;
 }
 function formToCfg(){
   for (const id in CFG_FIELDS){
     const k = CFG_FIELDS[id], v = $("#" + id).value;
-    cfg[k] = (typeof DEFAULTS[k] === "number") ? (parseFloat(v) || DEFAULTS[k]) : v;
+    /* Zero is a real answer for a margin or a gap, so test for a number
+       rather than for truth — "|| DEFAULTS" would quietly overwrite it. */
+    if (typeof DEFAULTS[k] === "number"){
+      const n = parseFloat(v);
+      cfg[k] = isFinite(n) ? n : DEFAULTS[k];
+    } else cfg[k] = v;
   }
   saveActive();
   renderPreview();

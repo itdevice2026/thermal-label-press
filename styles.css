@@ -295,10 +295,14 @@ td select.rowrole{min-width:210px}
   body{background:#fff}
   .bar,.wrap,.toast{display:none !important}
   #sheet{display:block}
-  #sheet .label{
-    box-shadow:none;break-after:page;page-break-after:always;
+  /* a page is a row of labels — one on single stock, two or three across
+     on die-cut stock, with the die gap between them */
+  #sheet .pageRow{
+    display:flex;align-items:flex-start;
+    break-after:page;page-break-after:always;
   }
-  #sheet .label:last-child{break-after:auto;page-break-after:auto}
+  #sheet .pageRow:last-child{break-after:auto;page-break-after:auto}
+  #sheet .label{box-shadow:none}
 }
 
 /* ---- customer logo ---- */

@@ -351,34 +351,46 @@ function trailCSV(){
 /* ============================================================
    Printing
    ============================================================ */
-/* A run can mix customers, so each label carries its own stock size onto its own page. */
+/* A run can mix customers, so each label carries its own stock onto its own
+   page. On stock that is two or three labels across, a "page" is a row of them:
+   the printer sees the whole web, and the labels sit side by side on it with
+   the die-cut gap between. A part-filled last row is normal and unavoidable. */
 function printLabels(list){
   const sheet = $("#sheet");
   sheet.innerHTML = "";
-  const sizes = [];        /* distinct "W×H" in this run, in order */
+  const pages = [];                /* distinct page geometry, in order */
+  const geom  = {};                /* key -> {w,h,cols,gap} */
+  const open  = {};                /* key -> the row still being filled */
   let total = 0;
   list.forEach(d => {
     const prof = profileFor(d.cust);
     if (d.sym) prof.sym = d.sym;          /* the line's own choice wins over the stock's */
-    const key = prof.w + "x" + prof.h;
-    let idx = sizes.indexOf(key);
-    if (idx < 0){ sizes.push(key); idx = sizes.length - 1; }
+    const cols = acrossOf(prof), gap = gapOf(prof);
+    const key = [prof.w, prof.h, cols, gap].join("x");
+    let idx = pages.indexOf(key);
+    if (idx < 0){ pages.push(key); idx = pages.length - 1; geom[key] = { w:prof.w, h:prof.h, cols, gap }; }
     for (let i = 0; i < d.copies; i++){
       if (total++ > 500) return;
-      const el = buildLabel(d, prof).el;
-      el.classList.add("pg" + idx);
-      sheet.appendChild(el);
+      let row = open[key];
+      if (!row || row.childElementCount >= cols){
+        row = document.createElement("div");
+        row.className = "pageRow pg" + idx;
+        row.style.gap = gap + "mm";
+        sheet.appendChild(row);
+        open[key] = row;
+      }
+      row.appendChild(buildLabel(d, prof).el);
     }
   });
   if (!total){ toast("Nothing to print"); return; }
   logPrint(list);
   let ps = document.getElementById("pageStyle");
   if (!ps){ ps = document.createElement("style"); ps.id = "pageStyle"; document.head.appendChild(ps); }
-  ps.textContent = sizes.map((key, i) => {
-    const wh = key.split("x");
-    return "@page pg" + i + "{size:" + wh[0] + "mm " + wh[1] + "mm;margin:0}" +
-           "#sheet .label.pg" + i + "{page:pg" + i + "}";
-  }).join("\n") + "\n@page{size:" + sizes[0].replace("x", "mm ") + "mm;margin:0}";
+  const sizeOf = g => (g.w * g.cols + g.gap * (g.cols - 1)) + "mm " + g.h + "mm";
+  ps.textContent = pages.map((key, i) =>
+    "@page pg" + i + "{size:" + sizeOf(geom[key]) + ";margin:0}" +
+    "#sheet .pageRow.pg" + i + "{page:pg" + i + "}").join("\n") +
+    "\n@page{size:" + sizeOf(geom[pages[0]]) + ";margin:0}";
   window.print();
 }
 

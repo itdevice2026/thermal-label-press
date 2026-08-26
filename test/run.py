@@ -1,7 +1,7 @@
 """Drives the online app against the mock server: auth, roles, CRUD, printing."""
 from playwright.sync_api import sync_playwright
 from PIL import Image
-import zxingcpp, subprocess, glob, os, sys
+import zxingcpp, subprocess, glob, os, re, sys
 URL = "file:///home/claude/repo/test/index.html"
 errs, fails = [], []
 def check(label, got, want):
@@ -298,6 +298,67 @@ with sync_playwright() as p:
     check("and so is the house default", pg.evaluate("house.w"), house_w)
     pg.select_option("#s-scope", dali); pg.wait_for_timeout(600)
     check("switching back reads that company's own size", pg.input_value("#s-w"), "50")
+
+    # ---- stock that runs two labels across the roll ----
+    # 43 x 33 mm die-cut, two side by side. The printer's page is the whole web,
+    # but each label's content has to stay inside its own die cut: the failure
+    # this guards against is content centred across the pair, straddling the
+    # perforation.
+    pg.select_option("#s-scope", alljoy); pg.wait_for_timeout(600)
+    pg.select_option("#s-preset", "43x33"); pg.wait_for_timeout(700)
+    check("the preset sets both measurements", pg.evaluate("[cfg.w,cfg.h]"), [43, 33])
+    check("no gap is asked for while nothing sits beside it", pg.is_visible("#fld-colgap"), False)
+    pg.select_option("#s-cols", "2"); pg.wait_for_timeout(700)
+    check("the gap appears once labels sit side by side", pg.is_visible("#fld-colgap"), True)
+    pg.fill("#s-colgap", "2"); pg.wait_for_timeout(800)
+    check("the roll is the labels plus the gap between them", pg.evaluate("webWidth(cfg)"), 88)
+    check("the label itself is still one label wide", pg.evaluate("cfg.w"), 43)
+    check("the spec line names the roll", "88" in pg.inner_text("#specs"), True)
+    check("the layout is saved against that company",
+          pg.evaluate("(__DB.lbl_customers.find(c=>c.code=='ALLJOY').stock||{}).cols"), 2)
+
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(400)
+    pg.fill("#f-name", "AllJoy Chicken Cut Ups"); pg.fill("#f-code", "39012472"); pg.wait_for_timeout(700)
+    pg.evaluate("window.print=()=>{}")
+    pg.fill("#f-copies", "3"); pg.click("#b-print"); pg.wait_for_timeout(800)
+    check("three labels go out as two rows of two",
+          pg.eval_on_selector_all("#sheet .pageRow", "r=>r.map(x=>x.childElementCount)"), [2, 1])
+    check("the page is the width of the roll, not of one label",
+          "size:88mm 33mm" in pg.evaluate("document.getElementById('pageStyle').textContent"), True)
+    pg.pdf(path="/home/claude/repo/test/two-up.pdf", prefer_css_page_size=True, print_background=True)
+    subprocess.run("pdfinfo /home/claude/repo/test/two-up.pdf | egrep 'Pages|Page size'", shell=True)
+    for f in glob.glob("/home/claude/repo/test/tw-*.png"): os.remove(f)
+    subprocess.run("pdftoppm -r 600 -png /home/claude/repo/test/two-up.pdf /home/claude/repo/test/tw", shell=True)
+    sheets = sorted(glob.glob("/home/claude/repo/test/tw-*.png"))
+    check("it prints as two sheets of stock", len(sheets), 2)
+    scanned = []
+    for f in sheets:
+        scanned += [b.text for b in zxingcpp.read_barcodes(Image.open(f).convert("RGB"))]
+    check("every label across the pair still scans", scanned, ["39012472\n"] * 3)
+    # each barcode has to sit in its own half of the web, not across the middle
+    im = Image.open(sheets[0]).convert("L")
+    mid = im.width // 2
+    dark = lambda box: sum(1 for px in im.crop(box).getdata() if px < 128)
+    check("nothing is printed over the perforation",
+          dark((mid - 12, 0, mid + 12, im.height)), 0)
+    check("both halves of the web are used",
+          dark((0, 0, mid, im.height)) > 0 and dark((mid, 0, im.width, im.height)) > 0, True)
+
+    zpl = pg.evaluate("buildZPL(currentLabel(), 3)")
+    check("the ZPL page is the whole roll",
+          ("^PW" + str(pg.evaluate("mm2dots(webWidth(cfg))"))) in zpl, True)
+    check("it draws a barcode in each column", zpl.count("^BCN"), 2)
+    lw = pg.evaluate("mm2dots(cfg.w)")
+    check("the second column is offset by a whole label",
+          any(int(x) >= lw for x in re.findall(r"\^FO(\d+),", zpl)), True)
+    # the printer feeds a row at a time, so three labels is two feeds
+    check("the quantity counts feeds, not labels", "^PQ2,0,0,N" in zpl, True)
+
+    # put it back to one across so the rest of the run is unaffected
+    pg.click('[data-tab="setup"]'); pg.wait_for_timeout(300)
+    pg.select_option("#s-cols", "1"); pg.wait_for_timeout(700)
+    pg.select_option("#s-scope", dali); pg.wait_for_timeout(600)
+    pg.click('[data-tab="print"]'); pg.wait_for_timeout(300)
 
     # second account lands pending
     pg.click("#b-signout"); pg.wait_for_timeout(600)
