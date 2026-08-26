@@ -181,6 +181,28 @@ with sync_playwright() as p:
     pg.fill("#s-dark","18"); pg.wait_for_timeout(500)
     check("house settings saved", pg.evaluate("__DB.lbl_settings[0].data.dark"), 18)
 
+    # ---- setting up a second company's stock ----
+    # Label setup works on one company at a time and has its own picker for
+    # choosing which; it is the same selection as the customer on the Print tab.
+    dali   = pg.evaluate("customers.find(c=>c.code=='DALI').id")
+    alljoy = pg.evaluate("customers.find(c=>c.code=='ALLJOY').id")
+    check("the picker lists every customer plus the house default",
+          pg.eval_on_selector_all("#s-scope option", "o=>o.length"), 3)
+    pg.select_option("#s-scope", alljoy); pg.wait_for_timeout(600)
+    check("the banner names the company", "AllJoy" in pg.inner_text("#scope"), True)
+    check("the print tab follows the same choice", pg.input_value("#f-cust"), alljoy)
+    house_w = pg.evaluate("house.w")
+    pg.fill("#s-w","100"); pg.fill("#s-h","50"); pg.wait_for_timeout(800)
+    check("the second company gets its own stock",
+          pg.evaluate("(customers.find(c=>c.code=='ALLJOY').stock||{}).w"), 100)
+    check("saved to the database too",
+          pg.evaluate("(__DB.lbl_customers.find(c=>c.code=='ALLJOY').stock||{}).h"), 50)
+    check("the first company is left alone",
+          pg.evaluate("(customers.find(c=>c.code=='DALI').stock||{}).w"), 50)
+    check("and so is the house default", pg.evaluate("house.w"), house_w)
+    pg.select_option("#s-scope", dali); pg.wait_for_timeout(600)
+    check("switching back reads that company's own size", pg.input_value("#s-w"), "50")
+
     # second account lands pending
     pg.click("#b-signout"); pg.wait_for_timeout(600)
     pg.click('[data-gate="signup"]'); pg.wait_for_timeout(200)

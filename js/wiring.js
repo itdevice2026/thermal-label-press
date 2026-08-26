@@ -30,6 +30,12 @@ $$(".tabs button").forEach(b => b.addEventListener("click", () => {
 
 $("#f-pick").addEventListener("change", e => { if (e.target.value !== "") loadProduct(+e.target.value); });
 $("#f-cust").addEventListener("change", () => { renderCatalog(); adoptProfile(); });
+/* The picker on Label setup is the same choice as the one on the Print tab —
+   two ways into one selection, so the tab you are on decides nothing. */
+$("#s-scope").addEventListener("change", e => {
+  $("#f-cust").value = e.target.value;
+  renderCatalog(); adoptProfile();
+});
 
 $("[data-pd]").addEventListener("click", () => { $("#f-pd").value = todayISO(); renderPreview(); });
 $$("[data-shelf]").forEach(b => b.addEventListener("click", () => {

@@ -120,6 +120,9 @@ function companyCell(p, i){
 function renderCustomers(){
   custOptions($("#f-cust"), "All customers");
   custOptions($("#n-cust"), "Select a customer…");   /* approved only */
+  /* Label setup edits one company's stock at a time, and says which; without a
+     picker of its own the only way to switch was to go back to the Print tab. */
+  if ($("#s-scope")) custOptions($("#s-scope"), "House default — customers with no size of their own");
   const waitingC = customers.filter(isPending).length;
   $("#cus-count").textContent = customers.length + (customers.length === 1 ? " customer" : " customers") +
     (waitingC ? " · " + waitingC + " awaiting approval" : "");

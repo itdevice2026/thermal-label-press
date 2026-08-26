@@ -74,6 +74,7 @@ function paintScope(){
   const el = $("#scope");
   if (!el) return;
   const co = custById(editingScope());
+  if ($("#s-scope")) $("#s-scope").value = editingScope();
   const own = co && co.stock;
   el.innerHTML = co
     ? '<div class="flag ' + (own ? "ok" : "warn") + '"><span class="ic">' + (own ? "▣" : "△") + "</span><span>Editing the stock for <b>" +
