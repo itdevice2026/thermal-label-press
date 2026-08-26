@@ -316,8 +316,18 @@ with sync_playwright() as p:
     check("the spec line names the roll", "88" in pg.inner_text("#specs"), True)
     check("the layout is saved against that company",
           pg.evaluate("(__DB.lbl_customers.find(c=>c.code=='ALLJOY').stock||{}).cols"), 2)
+    # the preview shows what comes off the roll, which is now a pair
+    check("the preview shows both labels",
+          pg.eval_on_selector_all("#stageInner2 .webRow > .label", "e=>e.length"), 2)
+    check("with the die cut marked between them",
+          pg.eval_on_selector_all("#stageInner2 .webRow > .perf", "e=>e.length"), 1)
+    check("and the preview is as wide as the roll",
+          pg.evaluate("Math.round(document.querySelector('#stageInner2').getBoundingClientRect().width /"
+                      " (document.querySelector('#stageInner2 .webRow > .label').getBoundingClientRect().width))"), 2)
 
     pg.click('[data-tab="print"]'); pg.wait_for_timeout(400)
+    check("the Print tab previews the pair too",
+          pg.eval_on_selector_all("#stageInner .webRow > .label", "e=>e.length"), 2)
     pg.fill("#f-name", "AllJoy Chicken Cut Ups"); pg.fill("#f-code", "39012472"); pg.wait_for_timeout(700)
     pg.evaluate("window.print=()=>{}")
     pg.fill("#f-copies", "3"); pg.click("#b-print"); pg.wait_for_timeout(800)
@@ -357,6 +367,9 @@ with sync_playwright() as p:
     # put it back to one across so the rest of the run is unaffected
     pg.click('[data-tab="setup"]'); pg.wait_for_timeout(300)
     pg.select_option("#s-cols", "1"); pg.wait_for_timeout(700)
+    check("back on one across the preview is a single label",
+          pg.evaluate("!document.querySelector('#stageInner2 .webRow')"
+                      " && !!document.querySelector('#stageInner2 > .label')"), True)
     pg.select_option("#s-scope", dali); pg.wait_for_timeout(600)
     pg.click('[data-tab="print"]'); pg.wait_for_timeout(300)
 

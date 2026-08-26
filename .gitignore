@@ -7,3 +7,5 @@ test/qr.pdf
 test/qp-*.png
 test/sym-*.pdf
 test/sp-*.png
+test/two-up.pdf
+test/tw-*.png

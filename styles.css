@@ -168,7 +168,11 @@ input:hover,select:hover{border-color:var(--ink-3)}
   border-bottom:1px solid var(--line-2);overflow:auto;
 }
 .stageInner{position:relative;flex:0 0 auto}
-.stageInner > .label{transform-origin:top left}
+.stageInner > .label,.stageInner > .webRow{transform-origin:top left}
+/* A row of the roll: the labels side by side, and a dashed line standing in
+   for the die cut between them. */
+.webRow{position:relative;display:flex;align-items:flex-start}
+.webRow .perf{position:absolute;top:-2mm;bottom:-2mm;width:0;border-left:1px dashed var(--ink-3);opacity:.75}
 .specs{
   display:flex;gap:14px;flex-wrap:wrap;padding:11px 18px;
   font-family:var(--mono);font-size:12px;color:var(--ink-2);

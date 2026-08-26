@@ -669,7 +669,30 @@ function fitZoom(sfx){
   const w = stage ? stage.clientWidth : 0;
   if (!w) return 4;                       // hidden panel: don't constrain
   const mmpx = 96 / 25.4;
-  return Math.max(1, Math.min(4, (w - 44) / (cfg.w * mmpx)));
+  /* What has to fit is what comes off the roll: on two-across stock that is
+     the pair, not one label. */
+  return Math.max(1, Math.min(4, (w - 44) / (webWidth(cfg) * mmpx)));
+}
+
+/* One row of the roll, as it will actually come out: every label across, the
+   real gap between them, and a dashed line where the die cut is. Seeing the
+   pair is the whole point of the setting — it is how you catch content
+   drifting over the perforation before a roll is spent finding out. */
+function buildWeb(data, prof, firstEl){
+  prof = prof || cfg;
+  const n = acrossOf(prof), gap = gapOf(prof);
+  const row = document.createElement("div");
+  row.className = "webRow";
+  row.style.gap = gap + "mm";
+  row.appendChild(firstEl || buildLabel(data, prof).el);
+  for (let i = 1; i < n; i++) row.appendChild(buildLabel(data, prof).el);
+  for (let i = 1; i < n; i++){
+    const cut = document.createElement("div");
+    cut.className = "perf";
+    cut.style.left = (i * (prof.w + gap) - gap / 2) + "mm";
+    row.appendChild(cut);
+  }
+  return row;
 }
 
 function renderPreview(){
@@ -679,17 +702,19 @@ function renderPreview(){
   const mmpx = 96 / 25.4;
   const contentMM = measureLabelMM(data);
   let zApplied = zoom;
+  const across = acrossOf(cfg), webMM = webWidth(cfg);
   ["", "2"].forEach(sfx => {
     const host = $("#stageInner" + sfx);
     if (!host) return;
     host.innerHTML = "";
-    const node = sfx ? buildLabel(data).el : el;
+    const one = sfx ? buildLabel(data).el : el;
+    const node = across > 1 ? buildWeb(data, cfg, one) : one;
     host.appendChild(node);
     const z = Math.min(zoom, fitZoom(sfx));
     if (!sfx) zApplied = z;
     node.style.transform = "scale(" + z + ")";
     host.style.height = (cfg.h * mmpx * z) + "px";
-    host.style.width  = (cfg.w * mmpx * z) + "px";
+    host.style.width  = (webMM * mmpx * z) + "px";
   });
 
   const qr  = el._qr;
