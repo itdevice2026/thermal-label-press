@@ -440,6 +440,48 @@ with sync_playwright() as p:
     pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
     check("unlocks again", pg.is_visible("#gate"), False)
 
+    # ---- changing your own password ----
+    # Anyone can change their own, and only their own. The current one is
+    # required, so a station left signed in cannot be taken over by a passer-by.
+    pg.click("#b-pw"); pg.wait_for_timeout(300)
+    check("the dialog opens", pg.is_visible("#pw-panel"), True)
+    check("and names who it is for", "nomer@meatplus.ph" in pg.inner_text("#pw-who"), True)
+    pg.fill("#pw-old","wrongone"); pg.fill("#pw-new","labelpress9"); pg.fill("#pw-new2","labelpress9")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(600)
+    check("a wrong current password is refused",
+          "not right" in pg.inner_text("#pw-msg"), True)
+    check("and nothing changed",
+          pg.evaluate("__DB.users.find(u=>u.email==='nomer@meatplus.ph').password"), "labelpress1")
+    pg.fill("#pw-old","labelpress1"); pg.fill("#pw-new","short"); pg.fill("#pw-new2","short")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(400)
+    check("a too-short new password is refused", "8 characters" in pg.inner_text("#pw-msg"), True)
+    pg.fill("#pw-new","labelpress9"); pg.fill("#pw-new2","labelpress8")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(400)
+    check("two that disagree are refused", "don" in pg.inner_text("#pw-msg"), True)
+    pg.fill("#pw-old","labelpress1"); pg.fill("#pw-new","labelpress9"); pg.fill("#pw-new2","labelpress9")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(800)
+    check("the dialog closes on success", pg.is_visible("#pw-panel"), False)
+    check("the password is changed",
+          pg.evaluate("__DB.users.find(u=>u.email==='nomer@meatplus.ph').password"), "labelpress9")
+    check("nobody else's password moved",
+          pg.evaluate("__DB.users.find(u=>u.email==='rosa@meatplus.ph').password"), "labelpress2")
+    check("the trail records it, without the password",
+          pg.evaluate("(function(r){return r && r.action==='changed own password' && !/labelpress/.test("
+                      "JSON.stringify(r))})(__DB.lbl_activity[__DB.lbl_activity.length-1])"), True)
+    # the new one is the one that works now
+    pg.click("#b-signout"); pg.wait_for_timeout(600)
+    pg.fill("#li-email","nomer@meatplus.ph"); pg.fill("#li-pass","labelpress1")
+    pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(700)
+    check("the old password no longer signs in", pg.is_visible("#gate"), True)
+    pg.fill("#li-pass","labelpress9")
+    pg.click("#login-panel button[type=submit]"); pg.wait_for_timeout(900)
+    check("the new one does", pg.is_visible("#gate"), False)
+    # put it back, so the rest of the run signs in the way it expects
+    pg.click("#b-pw"); pg.wait_for_timeout(300)
+    pg.fill("#pw-old","labelpress9"); pg.fill("#pw-new","labelpress1"); pg.fill("#pw-new2","labelpress1")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(800)
+    check("and it can be changed back", pg.is_visible("#pw-panel"), False)
+
     # operator: can print, cannot administer
     pg.click("#b-signout"); pg.wait_for_timeout(600)
     pg.fill("#li-email","rosa@meatplus.ph"); pg.fill("#li-pass","labelpress2")
@@ -447,6 +489,18 @@ with sync_playwright() as p:
     check("every account has its own id",
           pg.evaluate("new Set(__DB.users.map(u=>u.id)).size === __DB.users.length"), True)
     check("operator signed in", pg.inner_text("#who-role").lower(), "operator")
+    # the password button is not an administrator's privilege
+    check("an operator has the password button too", pg.is_visible("#b-pw"), True)
+    pg.click("#b-pw"); pg.wait_for_timeout(300)
+    pg.fill("#pw-old","labelpress2"); pg.fill("#pw-new","labelpress7"); pg.fill("#pw-new2","labelpress7")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(800)
+    check("and can actually change it",
+          pg.evaluate("__DB.users.find(u=>u.email==='rosa@meatplus.ph').password"), "labelpress7")
+    check("the administrator's is untouched",
+          pg.evaluate("__DB.users.find(u=>u.email==='nomer@meatplus.ph').password"), "labelpress1")
+    pg.click("#b-pw"); pg.wait_for_timeout(300)
+    pg.fill("#pw-old","labelpress7"); pg.fill("#pw-new","labelpress2"); pg.fill("#pw-new2","labelpress2")
+    pg.click("#b-pw-save"); pg.wait_for_timeout(800)
     check("operator tabs",
           pg.eval_on_selector_all(".tabs button","e=>e.filter(x=>x.offsetParent!==null).map(x=>x.textContent.trim())"),
           ["Print","Products","Customers","Print log"])

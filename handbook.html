@@ -371,6 +371,17 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
       </table>
     </div>
 
+    <h3>Changing your password</h3>
+    <p>Press <b>Password</b> in the top bar. Type the one you have now, then the new one twice, and
+      press <b>Change it</b>. Everyone has this button &#8212; operators as well as administrators &#8212; and it
+      changes your own password only.</p>
+    <p>Your current password is asked for every time, even though you are already signed in. That is
+      deliberate: on a shared machine left signed in, anyone walking past could otherwise lock you
+      out of your own account. Use at least <b>8 characters</b>.</p>
+    <p>If you have <em>forgotten</em> it, an administrator can set a new one for you on the Users tab.
+      Nobody &#8212; not an administrator, not this page &#8212; can read your existing password; it can only be
+      replaced. Change the one they give you the first time you sign in with it.</p>
+
     <h3>Leaving the station</h3>
     <p><b>Lock</b> (top right) puts the sign-in screen back up but keeps everything where it is &#8212;
       use it when you step away from a shared machine. <b>Sign out</b> ends the session properly.
@@ -753,7 +764,10 @@ footer .rule{border-top:1px solid var(--line);padding-top:18px;max-width:68ch}
     </div>
     <ul class="plain">
       <li>A username cannot be changed once the account exists.</li>
-      <li>Editing someone and leaving the password boxes empty keeps their current password.</li>
+      <li>Editing someone and leaving the password boxes empty keeps their current password.
+        Filling them in <b>resets</b> it &#8212; use that when someone has forgotten theirs. The reset is
+        recorded on the Activity tab, and people can change their own password themselves from the
+        <b>Password</b> button in the top bar, so this should be rare.</li>
       <li>You cannot remove your own access.</li>
       <li><b>Export users CSV</b> gives names, usernames and roles only &#8212; never passwords.</li>
     </ul>

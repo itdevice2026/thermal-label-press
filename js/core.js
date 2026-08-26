@@ -349,6 +349,66 @@ $("#b-lock").addEventListener("click", () => {
   setTimeout(() => $("#li-pass").focus(), 80);
 });
 
+/* ---- changing your own password ----
+   Everyone gets this, operators included. The current password is asked for and
+   checked before anything changes: a station left signed in is otherwise a
+   station where a passer-by can lock the owner out of their own account. The
+   check is a sign-in with the old password, which is the only way to verify it —
+   nothing here, or anywhere in this app, can read what the password is. */
+function openPassword(){
+  const u = sb.user();
+  if (!u) return;
+  $("#pw-who").textContent = (me && me.name ? me.name + " · " : "") + (u.email || "");
+  ["pw-old", "pw-new", "pw-new2"].forEach(id => $("#" + id).value = "");
+  const msg = $("#pw-msg");
+  msg.style.color = ""; msg.textContent = "";
+  $("#pwWrap").hidden = false;
+  setTimeout(() => $("#pw-old").focus(), 60);
+}
+function closePassword(){ $("#pwWrap").hidden = true; }
+
+$("#b-pw").addEventListener("click", openPassword);
+$("#b-pw-cancel").addEventListener("click", closePassword);
+$("#pwWrap").addEventListener("click", e => { if (e.target === $("#pwWrap")) closePassword(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("#pwWrap").hidden) closePassword();
+});
+
+$("#pw-panel").addEventListener("submit", async e => {
+  e.preventDefault();
+  const u = sb.user();
+  const msg = $("#pw-msg");
+  const old = $("#pw-old").value, p1 = $("#pw-new").value, p2 = $("#pw-new2").value;
+  msg.style.color = ""; msg.textContent = "";
+  if (!u || !u.email) return void (msg.textContent = "You are not signed in.");
+  if (!old)            return void (msg.textContent = "Type your current password first.");
+  if (p1.length < 8)   return void (msg.textContent = "Use at least 8 characters for the new password.");
+  if (p1 !== p2)       return void (msg.textContent = "The two new passwords don’t match.");
+  if (p1 === old)      return void (msg.textContent = "That is the password you already have.");
+  const btn = $("#b-pw-save");
+  btn.disabled = true; btn.textContent = "Changing…";
+  try {
+    await sb.signIn(u.email, old);          /* proves it is the owner at the keyboard */
+  } catch (err){
+    msg.style.color = "var(--bad)";
+    msg.textContent = /invalid/i.test(err.message) ? "That current password is not right." : err.message;
+    $("#pw-old").value = ""; $("#pw-old").focus();
+    btn.disabled = false; btn.textContent = "Change it";
+    return;
+  }
+  try {
+    await sb.updateUser({ password: p1 });
+    trail("changed own password", "account", me ? me.name : (u.email || ""), "");
+    closePassword();
+    toast("Password changed");
+  } catch (err){
+    msg.style.color = "var(--bad)";
+    msg.textContent = /weak|short|least/i.test(err.message)
+      ? "The server would not take that password: " + err.message
+      : err.message;
+  } finally { btn.disabled = false; btn.textContent = "Change it"; }
+});
+
 $("#b-refresh").addEventListener("click", async () => {
   $("#b-refresh").disabled = true;
   try { await db.loadAll(); renderCustomers(); renderLog(); adoptProfile(); toast("Up to date"); }

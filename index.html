@@ -41,6 +41,7 @@
     <a class="btn ghost tiny" href="handbook.html" target="_blank" rel="noopener"
        title="How to use this system — opens in a new tab">Handbook</a>
     <button class="btn ghost tiny" id="b-refresh" title="Reload from the database">Refresh</button>
+    <button class="btn ghost tiny" id="b-pw" title="Change your own password">Password</button>
     <button class="btn ghost tiny" id="b-lock" title="Lock the station">Lock</button>
     <button class="btn ghost tiny" id="b-signout">Sign out</button>
   </div>
@@ -94,6 +95,30 @@
     <p class="gateFoot">What each person may read or change is decided by the database, not by this page.<br>
       New here? Read the <a href="handbook.html" target="_blank" rel="noopener">handbook</a>.</p>
   </div>
+</div>
+
+<!-- ============ CHANGE YOUR OWN PASSWORD ============
+     Everyone has this, whatever their role: a password nobody but its owner can
+     change is a password that gets written on the wall beside the printer. An
+     administrator resetting someone else's is a separate thing, on the Users tab. -->
+<div id="pwWrap" hidden>
+  <form class="modalCard" id="pw-panel" autocomplete="on">
+    <h1>Change your password</h1>
+    <p class="gateNote">Signed in as <b id="pw-who"></b>. This changes your own password and nobody else's.</p>
+    <div class="field"><label for="pw-old">Current password</label>
+      <input type="password" id="pw-old" autocomplete="current-password" required></div>
+    <div class="field"><label for="pw-new">New password</label>
+      <input type="password" id="pw-new" autocomplete="new-password" required></div>
+    <div class="field"><label for="pw-new2">Repeat it</label>
+      <input type="password" id="pw-new2" autocomplete="new-password" required></div>
+    <div class="gateMsg" id="pw-msg"></div>
+    <div class="modalActs">
+      <button class="btn primary" type="submit" id="b-pw-save">Change it</button>
+      <button class="btn ghost" type="button" id="b-pw-cancel">Cancel</button>
+    </div>
+    <p class="gateFoot">Forgotten it instead? An administrator can set a new one for you on the
+      Users tab — they cannot see the old one either.</p>
+  </form>
 </div>
 
 <main class="wrap">

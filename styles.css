@@ -293,6 +293,24 @@ td select.rowrole{min-width:210px}
 .gateFoot{margin:14px 0 0;padding-top:11px;border-top:1px solid var(--line-2);font-size:11.5px;line-height:1.45;color:var(--ink-3)}
 @media print{#gate{display:none !important}}
 
+/* ---------- change-your-password dialog ----------
+   The gate card in a smaller room: the app stays behind it, dimmed, because
+   this is a detour from work rather than a way in. */
+#pwWrap{
+  position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:rgba(9,18,21,.55);overflow:auto;
+}
+#pwWrap[hidden]{display:none}
+.modalCard{
+  width:100%;max-width:366px;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;
+}
+.modalCard h1{margin:0 0 4px;font-size:18px;letter-spacing:-.02em}
+.modalCard .field{margin-bottom:9px}
+.modalActs{display:flex;gap:8px;margin-top:4px}
+.modalActs .btn{flex:1;padding:10px;justify-content:center}
+@media print{#pwWrap{display:none !important}}
+
 /* ---------- print ---------- */
 #sheet{display:none}
 @media print{

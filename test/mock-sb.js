@@ -121,6 +121,21 @@
 
   P.signOut = async function(){ this.session = null; this._save(); };
 
+  /* Changing your own password: GoTrue's PUT /auth/v1/user, as far as this app
+     uses it. The session must be a real one — a signed-out client changes
+     nothing — and the server keeps its own minimum length. */
+  P.updateUser = async function(attrs){
+    const s = this.user();
+    const u = s && DB.users.find(x => x.id === s.id);
+    if (!u){ const e = new Error("Not signed in"); e.status = 401; throw e; }
+    if (attrs && attrs.password != null){
+      if (String(attrs.password).length < 6) throw new Error("Password should be at least 6 characters");
+      u.password = String(attrs.password);
+    }
+    persist();
+    return { id: u.id, email: u.email };
+  };
+
   /* --- the server-side rules, mirrored --- */
   function role(self){
     const u = self.user();
